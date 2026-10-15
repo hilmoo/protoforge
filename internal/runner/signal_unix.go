@@ -1,0 +1,10 @@
+//go:build !windows
+
+package runner
+
+import (
+	"os"
+	"syscall"
+)
+
+func interruptSignals() []os.Signal { return []os.Signal{os.Interrupt, syscall.SIGTERM} }

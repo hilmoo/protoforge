@@ -1,0 +1,531 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/hilmoo/protoforge/main/schema/protoforge.schema.json",
+  "title": "protoforge.yaml",
+  "description": "Configuration for protoforge: Drizzle -> TypeSpec -> OpenAPI -> .proto. See docs/config.md.",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "integer",
+      "description": "Config schema version.",
+      "default": 1,
+      "enum": [
+        1
+      ]
+    },
+    "env_file": {
+      "type": "string",
+      "description": "dotenv file loaded into every child process (and used for DATABASE_URL). Does not override variables already set. A missing file is ignored."
+    },
+    "env": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Extra environment variables for child processes. Values support ${VAR} expansion and override the environment."
+    },
+    "tools": {
+      "type": "object",
+      "properties": {
+        "node_runner": {
+          "type": "string",
+          "description": "Package-manager exec command used as the last fallback for npm tools. Default: picked from the nearest lockfile (pnpm exec | bunx | yarn exec | npx).",
+          "examples": [
+            "pnpm exec",
+            "npx",
+            "bunx"
+          ]
+        },
+        "openapi_generator": {
+          "type": "string",
+          "description": "Command for openapi-generator. Default: openapi-generator-cli on PATH.",
+          "examples": [
+            "openapi-generator-cli",
+            "java -jar openapi-generator-cli.jar",
+            "npx @openapitools/openapi-generator-cli"
+          ]
+        },
+        "drizzle_kit": {
+          "type": "string",
+          "description": "Command for drizzle-kit. Default: node_modules/.bin, then PATH, then the node runner."
+        },
+        "drizzle_docs": {
+          "type": "string",
+          "description": "Command for drizzle-docs. Default: node_modules/.bin, then PATH, then the node runner."
+        },
+        "tsp": {
+          "type": "string",
+          "description": "Command for the TypeSpec compiler. Default: node_modules/.bin, then PATH, then the node runner."
+        },
+        "openapi_format": {
+          "type": "string",
+          "description": "Command for openapi-format. Default: node_modules/.bin, then PATH, then the node runner."
+        },
+        "spectral": {
+          "type": "string",
+          "description": "Command for spectral (openapi --only lint)."
+        },
+        "ts_runner": {
+          "type": "string",
+          "description": "Runs the embedded Drizzle -> TypeSpec script. Default: tsx, then bun, then node --experimental-strip-types (Node >= 22.6).",
+          "examples": [
+            "tsx",
+            "bun",
+            "node --experimental-strip-types"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "description": "Overrides for how external tools are invoked. All optional; auto-detected."
+    },
+    "migration": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "dir": {
+              "type": "string",
+              "description": "Drizzle project directory.",
+              "default": "migration"
+            },
+            "drizzle_config": {
+              "type": "string",
+              "description": "Passed to drizzle-kit as --config (relative to dir).",
+              "default": "drizzle.config.ts"
+            },
+            "drizzle_out": {
+              "type": "string",
+              "description": "Drizzle's out directory, read by sync (relative to dir).",
+              "default": "drizzle"
+            },
+            "generate": {
+              "type": "boolean",
+              "description": "Run drizzle-kit generate.",
+              "default": false
+            },
+            "push": {
+              "type": "boolean",
+              "description": "Run drizzle-kit push (then post_push_sql).",
+              "default": false
+            },
+            "migrate": {
+              "type": "boolean",
+              "description": "Run drizzle-kit migrate.",
+              "default": false
+            },
+            "docs": {
+              "type": "object",
+              "properties": {
+                "schema_dir": {
+                  "type": "string",
+                  "description": "Schema directory (relative to migration.dir).",
+                  "default": "./src/schema"
+                },
+                "dialect": {
+                  "type": "string",
+                  "description": "Passed as -d.",
+                  "default": "postgresql",
+                  "examples": [
+                    "postgresql",
+                    "mysql",
+                    "sqlite"
+                  ]
+                },
+                "format": {
+                  "type": "string",
+                  "description": "Passed as -f.",
+                  "default": "dbml",
+                  "examples": [
+                    "dbml",
+                    "markdown"
+                  ]
+                },
+                "out": {
+                  "type": "string",
+                  "description": "Output file (relative to migration.dir).",
+                  "default": "schema.dbml"
+                }
+              },
+              "additionalProperties": false,
+              "description": "Run drizzle-docs generate. Use docs: {} for all defaults; omit to skip."
+            },
+            "post_push_sql": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Raw SQL run in ONE transaction over DATABASE_URL after push (rolled back on error). Each entry may hold several statements or DO blocks. Also runnable with --only post_push_sql."
+            },
+            "sync": {
+              "type": "object",
+              "properties": {
+                "to": {
+                  "type": "string",
+                  "description": "Target directory (relative to migration.dir). Its contents are replaced; must be inside the repo root."
+                },
+                "suffix": {
+                  "type": "string",
+                  "description": "Suffix appended to each migration directory name.",
+                  "default": ".up.sql"
+                },
+                "extra_replace": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/replaceRule"
+                  },
+                  "description": "Extra rewrite rules applied to each written file."
+                }
+              },
+              "required": [
+                "to"
+              ],
+              "additionalProperties": false,
+              "description": "Copy drizzle/<name>/migration.sql to <to>/<name><suffix>, turning backticks into double quotes and removing statement-breakpoint lines. Omit to skip."
+            },
+            "run_after": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/command"
+              },
+              "description": "Escape-hatch commands run in dir after the stage."
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Drizzle stage: drizzle-kit generate/push/migrate, drizzle-docs, post_push_sql and sync. Absent = stage disabled; empty = enabled with defaults."
+    },
+    "typespec": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "dir": {
+              "type": "string",
+              "description": "TypeSpec project directory.",
+              "default": "openapi"
+            },
+            "entry": {
+              "type": "string",
+              "description": "Entry passed to tsp compile (relative to dir). Without dir/tspconfig.yaml a built-in config is used.",
+              "default": "./src"
+            },
+            "from_drizzle": {
+              "type": "object",
+              "properties": {
+                "schema_dir": {
+                  "type": "string",
+                  "description": "Directory of Drizzle *.ts schema files (relative to typespec.dir).",
+                  "default": "../migration/src/schema"
+                },
+                "out": {
+                  "type": "string",
+                  "description": "Generated .tsp file (relative to typespec.dir).",
+                  "default": "src/_generated/db.tsp"
+                },
+                "namespace": {
+                  "type": "string",
+                  "description": "TypeSpec namespace of the generated file.",
+                  "default": "DbSchema",
+                  "pattern": "^[A-Za-z_][\\w.]*$"
+                },
+                "read_only_columns": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Columns that get @visibility(Lifecycle.Read, Lifecycle.Delete).",
+                  "default": [
+                    "id",
+                    "created_at",
+                    "updated_at"
+                  ]
+                },
+                "require_docs": {
+                  "type": "string",
+                  "description": "Columns without a // doc comment: warn prints a warning, error fails without writing, off is silent.",
+                  "default": "warn",
+                  "enum": [
+                    "warn",
+                    "error",
+                    "off"
+                  ]
+                }
+              },
+              "additionalProperties": false,
+              "description": "Generate TypeSpec models/enums from the Drizzle schema with the embedded script. Omit to skip."
+            },
+            "run_after": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/command"
+              },
+              "description": "Escape-hatch commands run in dir after the stage."
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "TypeSpec stage: embedded Drizzle -> TypeSpec generator and tsp compile. Absent = stage disabled; empty = enabled with defaults."
+    },
+    "openapi": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "dir": {
+              "type": "string",
+              "description": "Directory holding the OpenAPI document.",
+              "default": "openapi"
+            },
+            "output": {
+              "type": "string",
+              "description": "Compiled OpenAPI JSON (relative to dir).",
+              "default": "openapi.json"
+            },
+            "format": {
+              "type": "boolean",
+              "description": "Run openapi-format with dir/oaf-config.yaml (or a built-in config).",
+              "default": false
+            },
+            "go_tags": {
+              "type": "boolean",
+              "description": "Inject x-oapi-codegen-extra-tags (validate / jsonschema Go struct tags).",
+              "default": false
+            },
+            "lint": {
+              "type": "string",
+              "description": "Spectral ruleset path; used only by stage openapi --only lint."
+            },
+            "run_after": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/command"
+              },
+              "description": "Escape-hatch commands run in dir after the stage."
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "OpenAPI stage: openapi-format and Go struct-tag injection. Absent = stage disabled; empty = enabled with defaults."
+    },
+    "proto": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "dir": {
+              "type": "string",
+              "description": "Working directory for openapi-generator.",
+              "default": "proto"
+            },
+            "registry": {
+              "type": "string",
+              "description": "Generator output root (relative to dir).",
+              "default": "registry"
+            },
+            "templates": {
+              "type": "string",
+              "description": "Directory with api.mustache / model.mustache (relative to dir). Default: the embedded templates."
+            },
+            "proto_package": {
+              "type": "string",
+              "description": "Version segment: package models.<v> / services.<v>, output dirs registry/{models,services}/<v>.",
+              "default": "v1",
+              "pattern": "^[a-z][a-z0-9_]*$"
+            },
+            "go_package_root": {
+              "type": "string",
+              "description": "option go_package = \"<root>/models/<v>;models<v>\" (and services).",
+              "default": "proto"
+            },
+            "well_known": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              },
+              "description": "OpenAPI type -> protobuf type, passed as --type-mappings with matching --import-mappings.",
+              "default": {
+                "DateTime": "google.protobuf.Timestamp"
+              }
+            },
+            "any_type": {
+              "type": "string",
+              "description": "Replacement for the generator's AnyType (and its any_type.proto import).",
+              "default": "google.protobuf.Any"
+            },
+            "drop_imports": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Import stems (prefix match) whose import lines are removed, e.g. todo_object_mapping.",
+              "default": []
+            },
+            "flatten_requests": {
+              "type": "boolean",
+              "description": "Inline model fields into *Request service messages.",
+              "default": false
+            },
+            "extra_replace": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/replaceRule"
+              },
+              "description": "Rewrite rules applied to registry/{models,services}/<v> after flattening."
+            },
+            "codegen": {
+              "type": "object",
+              "properties": {
+                "enabled": {
+                  "type": "boolean",
+                  "description": "Run the commands at the end of the proto stage.",
+                  "default": false
+                },
+                "commands": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/command"
+                  },
+                  "description": "Commands to run in proto.dir.",
+                  "default": [
+                    "buf generate"
+                  ]
+                }
+              },
+              "additionalProperties": false,
+              "description": "Optional minimal codegen step run in dir (e.g. buf generate)."
+            },
+            "run_after": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/command"
+              },
+              "description": "Escape-hatch commands run in dir after the stage."
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Proto stage: openapi-generator protobuf-schema passes, normalisation and request flattening. Absent = stage disabled; empty = enabled with defaults."
+    },
+    "pipelines": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "description": "Named sequences of stages and/or other pipelines. Defaults: api = [typespec, openapi, proto], sql = [migration], all = [sql, api].",
+      "propertyNames": {
+        "not": {
+          "enum": [
+            "migration",
+            "typespec",
+            "openapi",
+            "proto"
+          ]
+        }
+      },
+      "examples": [
+        {
+          "api": [
+            "typespec",
+            "openapi",
+            "proto"
+          ]
+        }
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "command": {
+      "description": "A command: a plain string (split into argv, run without a shell) or {cmd, shell}.",
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "object",
+          "properties": {
+            "cmd": {
+              "type": "string",
+              "description": "Command line. Split into argv shell-style and run without a shell unless shell is true."
+            },
+            "shell": {
+              "type": "boolean",
+              "description": "Run through sh -c (cmd /C on Windows). Escape hatch only.",
+              "default": false
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "cmd"
+          ]
+        }
+      ]
+    },
+    "replaceRule": {
+      "type": "object",
+      "properties": {
+        "glob": {
+          "type": "string",
+          "description": "Files the rule applies to. Without a slash it matches the base name (e.g. *.proto); with a slash, the path relative to the rule's base dir."
+        },
+        "from": {
+          "type": "string",
+          "description": "Literal text to replace with 'to'."
+        },
+        "regex": {
+          "type": "string",
+          "description": "Go RE2 regex applied to the whole file; 'to' may use $1 / ${name}. Use (?m) for per-line ^ and $."
+        },
+        "to": {
+          "type": "string",
+          "description": "Replacement for from/regex."
+        },
+        "delete_line_matching": {
+          "type": "string",
+          "description": "Go RE2 regex; every matching line is deleted."
+        }
+      },
+      "required": [
+        "glob"
+      ],
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "required": [
+            "from"
+          ]
+        },
+        {
+          "required": [
+            "regex"
+          ]
+        },
+        {
+          "required": [
+            "delete_line_matching"
+          ]
+        }
+      ]
+    }
+  }
+}

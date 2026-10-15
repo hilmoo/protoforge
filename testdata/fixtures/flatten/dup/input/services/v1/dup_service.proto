@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package services.v1;
+
+service DupService {
+  rpc Dup (DupRequest) returns (DupResponse);
+}
+
+message DupRequest {
+  models.v1.Tag a = 1;
+  models.v1.Owner b = 2;
+}
+
+message DupResponse {
+}

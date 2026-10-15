@@ -1,0 +1,29 @@
+# yaml-language-server: $schema=../../schema/protoforge.schema.json
+#
+# Sample project used by protoforge's end-to-end tests. Running
+# `protoforge run all` here must reproduce every checked-in output.
+version: 1
+
+migration:
+  dir: db
+  generate: true
+  docs: {}
+  sync:
+    to: ../server/migrations
+
+typespec:
+  dir: api
+  entry: ./src
+  from_drizzle:
+    schema_dir: ../db/src/schema
+    out: src/_generated/db.tsp
+
+openapi:
+  dir: api
+  format: true
+  go_tags: true
+
+proto:
+  dir: proto
+  drop_imports: [common_error_error]
+  flatten_requests: true

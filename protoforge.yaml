@@ -1,0 +1,201 @@
+# yaml-language-server: $schema=./schema/protoforge.schema.json
+#
+# protoforge.yaml — reference example showing EVERY option.
+#
+# Values shown are either the defaults (marked "default") or illustrative
+# values. Every option is optional unless marked "required". A stage section
+# that is absent is disabled; a present-but-empty one (`openapi:`) is enabled
+# with defaults. Unknown keys are errors. Relative paths resolve against this
+# file's directory, and a stage's own paths against that stage's `dir`.
+#
+# Inspect the resolved config with:  protoforge config print
+# Preview any run without changes:   protoforge run --dry-run
+
+# Config schema version. Must be 1. (default: 1)
+version: 1
+
+# dotenv file loaded into every child process and used for DATABASE_URL.
+# Does not override variables already set; a missing file is ignored.
+env_file: .env
+
+# Extra environment variables for child processes. ${VAR} is expanded against
+# the process environment + env_file. These DO override existing variables.
+env:
+  NODE_ENV: development
+  DATABASE_URL: ${DATABASE_URL}
+  APP_REGION: ${AWS_REGION}
+
+# How external tools are invoked. Every value is a command line (split into
+# argv, no shell). All optional; auto-detected when omitted.
+tools:
+  # Last-fallback runner for npm tools. Default: from nearest lockfile
+  # (pnpm exec | bunx | yarn exec | npx).
+  node_runner: pnpm exec
+  # Default: openapi-generator-cli on PATH.
+  openapi_generator: java -jar /opt/openapi-generator-cli.jar
+  # npm tools: default is node_modules/.bin -> PATH -> node_runner.
+  drizzle_kit: drizzle-kit
+  drizzle_docs: drizzle-docs
+  tsp: tsp
+  openapi_format: openapi-format
+  spectral: spectral
+  # Runs the embedded Drizzle -> TypeSpec script.
+  # Default: tsx, then bun, then node --experimental-strip-types (Node >= 22.6).
+  ts_runner: tsx
+
+# ---------------------------------------------------------------------------
+# Stage 1: migration (Drizzle)
+# Steps: generate -> docs -> push -> post_push_sql -> migrate -> sync -> run_after
+# ---------------------------------------------------------------------------
+migration:
+  dir: migration                   # Drizzle project directory (default: migration)
+  drizzle_config: drizzle.config.ts # passed to drizzle-kit --config (default: drizzle.config.ts)
+  drizzle_out: drizzle             # Drizzle's out dir, read by sync (default: drizzle)
+  generate: true                   # run drizzle-kit generate (default: false)
+  push: true                       # run drizzle-kit push, then post_push_sql (default: false)
+  migrate: false                   # run drizzle-kit migrate (default: false)
+
+  # drizzle-docs generate. Omit to skip; `docs: {}` uses all defaults.
+  docs:
+    schema_dir: ./src/schema       # relative to migration.dir (default: ./src/schema)
+    dialect: postgresql            # postgresql | mysql | sqlite (default: postgresql)
+    format: dbml                   # dbml | markdown (default: dbml)
+    out: schema.dbml               # relative to migration.dir (default: schema.dbml)
+
+  # Raw SQL run in ONE transaction over DATABASE_URL after push (rolled back
+  # on error). Each entry may hold several statements or DO blocks.
+  # Also runnable with:  protoforge stage migration --only post_push_sql
+  post_push_sql:
+    - |
+      DO $$
+      DECLARE c text;
+      BEGIN
+        SELECT conname INTO c
+        FROM pg_constraint
+        WHERE conrelid = 'books'::regclass
+          AND confrelid = 'authors'::regclass
+          AND contype = 'f';
+
+        IF c IS NULL THEN
+          RAISE EXCEPTION 'FK from books to authors not found';
+        END IF;
+
+        EXECUTE format('ALTER TABLE books DROP CONSTRAINT %I', c);
+      END $$;
+
+      ALTER TABLE books
+        ADD CONSTRAINT books_author_id_fkey
+          FOREIGN KEY (author_id)
+          REFERENCES authors(id)
+          ON DELETE NO ACTION
+          DEFERRABLE INITIALLY DEFERRED;
+    - CREATE INDEX IF NOT EXISTS idx_books_title ON books (title);
+
+  # Copy <drizzle_out>/<name>/migration.sql to <to>/<name><suffix>, turning
+  # backticks into double quotes and removing statement-breakpoint lines.
+  # Omit to skip.
+  sync:
+    to: ../server/migrations     # required; relative to migration.dir.
+                                                 # Contents are replaced; must be inside the repo root.
+    suffix: .up.sql                # appended to each migration dir name (default: .up.sql)
+    # Extra rewrite rules for each written file. Exactly one of
+    # from / regex / delete_line_matching per rule.
+    extra_replace:
+      - { glob: "*.sql", from: "public.", to: "" }
+      - { glob: "*.sql", regex: '(?m)^-- generated.*$', to: "" }
+      - { glob: "*.sql", delete_line_matching: '^--> ' }
+
+  # Escape-hatch commands run in migration.dir after the stage.
+  run_after:
+    - echo migration done                          # plain string: argv, no shell
+    - { cmd: "echo done > .stamp", shell: true }   # opt-in shell (sh -c / cmd /C)
+
+# ---------------------------------------------------------------------------
+# Stage 2: typespec
+# Steps: from_drizzle -> compile -> run_after
+# ---------------------------------------------------------------------------
+typespec:
+  dir: openapi                     # TypeSpec project directory (default: openapi)
+  entry: ./src                     # passed to tsp compile, relative to dir (default: ./src).
+                                   # Without <dir>/tspconfig.yaml a built-in config is used.
+
+  # Generate TypeSpec models/enums from the Drizzle schema with the embedded
+  # script. Paths are relative to typespec.dir. Omit to skip.
+  from_drizzle:
+    schema_dir: ../migration/src/schema # Drizzle *.ts schema dir (default: ../migration/src/schema)
+    out: src/_generated/db.tsp          # generated file (default: src/_generated/db.tsp)
+    namespace: DbSchema                 # TypeSpec namespace, ^[A-Za-z_][\w.]*$ (default: DbSchema)
+    read_only_columns: [id, created_at, updated_at] # get @visibility(Lifecycle.Read, Lifecycle.Delete)
+    require_docs: warn                  # columns without a doc comment: warn | error | off (default: warn)
+
+  run_after:
+    - tsp format "src/**/*.tsp"
+
+# ---------------------------------------------------------------------------
+# Stage 3: openapi
+# Steps: format -> go_tags -> lint (only with --only) -> run_after
+# ---------------------------------------------------------------------------
+openapi:
+  dir: openapi                     # directory holding the document (default: openapi)
+  output: openapi.json             # compiled OpenAPI JSON, relative to dir (default: openapi.json)
+  format: true                     # openapi-format with dir/oaf-config.yaml or built-in (default: false)
+  go_tags: true                    # inject x-oapi-codegen-extra-tags validate/jsonschema (default: false)
+  lint: .spectral.yaml             # Spectral ruleset; used only by `stage openapi --only lint`
+  run_after:
+    - echo openapi done
+
+# ---------------------------------------------------------------------------
+# Stage 4: proto
+# Steps: models -> services -> flatten -> extra_replace -> cleanup -> codegen -> run_after
+# ---------------------------------------------------------------------------
+proto:
+  dir: proto                       # working dir for openapi-generator (default: proto)
+  registry: registry               # generator output root, relative to dir (default: registry)
+  templates: templates             # dir with api.mustache / model.mustache, relative to dir.
+                                   # Default: the embedded templates.
+  proto_package: v1                # version segment: package models.<v> / services.<v>;
+                                   # ^[a-z][a-z0-9_]*$ (default: v1)
+  go_package_root: proto           # option go_package = "<root>/models/<v>;models<v>" (default: proto)
+
+  # OpenAPI type -> protobuf type (--type-mappings + --import-mappings, models pass).
+  # default: {DateTime: google.protobuf.Timestamp}
+  well_known:
+    DateTime: google.protobuf.Timestamp
+    Duration: google.protobuf.Duration
+
+  any_type: google.protobuf.Any    # replaces the generator's AnyType (default: google.protobuf.Any)
+
+  # Import stems (prefix match) whose import lines are removed (default: []).
+  drop_imports: [common_error, common_pagination]
+
+  flatten_requests: true           # inline model fields into *Request messages (default: false)
+
+  # Rewrite rules applied to registry/{models,services}/<v> after flattening.
+  # Exactly one of from / regex / delete_line_matching per rule.
+  extra_replace:
+    - { glob: "*.proto", from: "optional string", to: "string" }
+    - { glob: "services/*.proto", regex: '(\w+)Dto', to: "${1}" }
+    - { glob: "*.proto", delete_line_matching: '^// TODO' }
+
+  # Optional minimal codegen step, run in proto.dir.
+  codegen:
+    enabled: true                  # default: false
+    commands:                      # default: ["buf generate"]
+      - buf generate
+      - { cmd: "buf lint && buf format -w", shell: true }
+
+  run_after:
+    - buf lint
+
+# ---------------------------------------------------------------------------
+# Pipelines: named sequences of stages and/or other pipelines.
+# Defaults (always available unless overridden):
+#   api = [typespec, openapi, proto]   sql = [migration]   all = [sql, api]
+# Names must not collide with a stage; cycles and unknown names are errors.
+# ---------------------------------------------------------------------------
+pipelines:
+  api: [typespec, openapi, proto]
+  sql: [migration]
+  all: [sql, api]
+  spec-only: [typespec, openapi]   # custom: run with `protoforge run spec-only`
+  ci: [spec-only, proto]           # pipelines can nest

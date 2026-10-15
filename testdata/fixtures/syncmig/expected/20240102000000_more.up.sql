@@ -1,0 +1,2 @@
+SELECT "a";
+SELECT 2;

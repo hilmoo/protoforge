@@ -1,0 +1,1 @@
+  [WARN] schema/field 'name' has 'pattern' constraint which cannot be expressed as a validator tag. Use 'x-validator' to add a custom tag.

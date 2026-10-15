@@ -1,0 +1,56 @@
+{{>partial_header}}
+syntax = "proto3";
+
+package {{#lambda.lowercase}}{{{packageName}}}.{{{apiPackage}}}.{{{classname}}};{{/lambda.lowercase}}
+
+{{#customOptionsApi}}
+{{{.}}}
+{{/customOptionsApi}}
+{{#imports}}
+{{#import}}
+import public "{{{import}}}.proto";
+{{/import}}
+{{/imports}}
+
+service {{classname}} {
+{{#operations}}
+{{#operation}}
+  {{#description}}
+  // {{{.}}}
+  {{/description}}
+  rpc {{operationId}} ({{operationId}}Request) returns ({{operationId}}Response);
+
+{{/operation}}
+{{/operations}}
+}
+
+{{#operations}}
+{{#operation}}
+message {{operationId}}Request {
+{{#hasParams}}
+  {{#allParams}}
+  {{#description}}
+  // {{{.}}}
+  {{/description}}
+  {{#vendorExtensions.x-protobuf-type}}{{.}} {{/vendorExtensions.x-protobuf-type}}{{#isModel}}models.v1.{{/isModel}}{{vendorExtensions.x-protobuf-data-type}} {{paramName}} = {{vendorExtensions.x-protobuf-index}}{{#vendorExtensions.x-protobuf-json-name}} [json_name="{{vendorExtensions.x-protobuf-json-name}}"]{{/vendorExtensions.x-protobuf-json-name}};
+  {{/allParams}}
+{{/hasParams}}
+}
+
+message {{operationId}}Response {
+{{#responses}}
+{{#is2xx}}
+{{#isArray}}
+  repeated models.v1.{{{vendorExtensions.x-oneOf-response-type}}} data = 1;
+{{/isArray}}
+{{^isArray}}
+{{#dataType}}
+  models.v1.{{{vendorExtensions.x-oneOf-response-type}}} data = 1;
+{{/dataType}}
+{{/isArray}}
+{{/is2xx}}
+{{/responses}}
+}
+
+{{/operation}}
+{{/operations}}

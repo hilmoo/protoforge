@@ -1,0 +1,538 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/items/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "x-oapi-codegen-extra-tags": {
+            "validate": "required,uuid"
+          }
+        },
+        {
+          "$ref": "#/components/parameters/Skip"
+        }
+      ],
+      "x-ignored": {
+        "parameters": [
+          {
+            "name": "x",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "get": {
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1.0,
+              "maximum": 100,
+              "exclusiveMaximum": true,
+              "format": "int32"
+            },
+            "x-oapi-codegen-extra-tags": {
+              "validate": "omitempty,gte=1,lt=100,int32"
+            }
+          },
+          {
+            "name": "day",
+            "in": "query",
+            "required": 1,
+            "x-mcp": true,
+            "description": "ignored at param level",
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "A day\nwith newline",
+              "example": "2024-01-01"
+            },
+            "x-oapi-codegen-extra-tags": {
+              "validate": "required,datetime=2006-01-02",
+              "jsonschema": "A day with newline. Example: 2024-01-01"
+            }
+          },
+          {
+            "name": "at",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "format": "time"
+            },
+            "x-oapi-codegen-extra-tags": {
+              "validate": "omitempty,datetime=15:04:05"
+            }
+          },
+          {
+            "name": "ts",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "x-oapi-codegen-extra-tags": {
+              "validate": "omitempty"
+            }
+          },
+          {
+            "name": "empty",
+            "in": "query",
+            "schema": {}
+          },
+          {
+            "name": "tags",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 5,
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "a",
+                  "b",
+                  null
+                ],
+                "minLength": 2
+              }
+            },
+            "x-oapi-codegen-extra-tags": {
+              "validate": "omitempty,min=1,max=5,unique,dive,min=2,oneof=a b"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ok"
+          }
+        }
+      },
+      "post": {
+        "parameters": [
+          {
+            "name": "w",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "minimum": 0.5,
+              "exclusiveMinimum": true,
+              "maximum": 1e+20
+            },
+            "x-oapi-codegen-extra-tags": {
+              "validate": "omitempty,gt=0.5,lte=1e+20"
+            }
+          },
+          {
+            "name": "big",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1e+20,
+              "maximum": 1.5
+            },
+            "x-oapi-codegen-extra-tags": {
+              "validate": "omitempty,gte=100000000000000000000,lte=1.5"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Color": {
+        "type": "string",
+        "enum": [
+          "red",
+          "green"
+        ],
+        "description": "A colour",
+        "x-oapi-codegen-extra-tags": {
+          "validate": "omitempty"
+        }
+      },
+      "Level": {
+        "type": "integer",
+        "enum": [
+          1,
+          2,
+          3
+        ],
+        "minimum": 1,
+        "x-oapi-codegen-extra-tags": {
+          "validate": "omitempty,gte=1,oneof=1 2 3"
+        }
+      },
+      "Obj": {
+        "type": "object",
+        "properties": {
+          "a": {
+            "type": "string",
+            "x-oapi-codegen-extra-tags": {
+              "validate": "omitempty"
+            }
+          }
+        }
+      },
+      "Ints": {
+        "type": "array",
+        "items": {
+          "type": "integer",
+          "maximum": 9
+        },
+        "x-oapi-codegen-extra-tags": {
+          "validate": "omitempty,dive,lte=9"
+        }
+      },
+      "Flag": {
+        "type": "boolean"
+      },
+      "Mcp": {
+        "type": "object",
+        "x-mcp": true,
+        "required": [
+          "name",
+          "active",
+          "maybe",
+          "color",
+          "level",
+          "nested"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[a-z]+$",
+            "description": "  The name  ",
+            "example": "bob",
+            "x-oapi-codegen-extra-tags": {
+              "validate": "required,min=1,max=64",
+              "jsonschema": "The name. Example: bob"
+            }
+          },
+          "active": {
+            "type": "boolean",
+            "description": "Is active.",
+            "x-oapi-codegen-extra-tags": {
+              "jsonschema": "Is active."
+            }
+          },
+          "maybe": {
+            "type": "boolean",
+            "nullable": true,
+            "example": true,
+            "x-oapi-codegen-extra-tags": {
+              "validate": "required",
+              "jsonschema": "Example: true"
+            }
+          },
+          "opt_bool": {
+            "type": "boolean",
+            "x-oapi-codegen-extra-tags": {
+              "validate": "omitempty"
+            }
+          },
+          "color": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Color"
+              }
+            ],
+            "description": "Wrapper wins",
+            "example": "red",
+            "x-oapi-codegen-extra-tags": {
+              "validate": "required",
+              "jsonschema": "Wrapper wins. Example: red"
+            }
+          },
+          "level": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Level"
+              }
+            ],
+            "x-oapi-codegen-extra-tags": {
+              "validate": "required,gte=1,oneof=1 2 3"
+            }
+          },
+          "obj_ref": {
+            "$ref": "#/components/schemas/Obj"
+          },
+          "ints_ref": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Ints"
+              }
+            ]
+          },
+          "missing_ref": {
+            "$ref": "#/components/schemas/Nope"
+          },
+          "external_ref": {
+            "$ref": "other.json#/Foo"
+          },
+          "two_refs": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Color"
+              },
+              {
+                "$ref": "#/components/schemas/Level"
+              }
+            ]
+          },
+          "mixed": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Color"
+              },
+              {
+                "type": "string",
+                "maxLength": 3
+              }
+            ],
+            "type": "string",
+            "x-oapi-codegen-extra-tags": {
+              "validate": "omitempty"
+            }
+          },
+          "inline_enum": {
+            "type": "string",
+            "enum": [
+              "x",
+              "y"
+            ],
+            "x-oapi-codegen-extra-tags": {
+              "validate": "omitempty,oneof=x y"
+            }
+          },
+          "int_enum": {
+            "type": "integer",
+            "enum": [
+              0,
+              5
+            ],
+            "x-oapi-codegen-extra-tags": {
+              "validate": "omitempty,oneof=0 5"
+            }
+          },
+          "nested": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "minItems": 2,
+              "items": {
+                "type": "number",
+                "minimum": -1.25
+              }
+            },
+            "x-oapi-codegen-extra-tags": {
+              "validate": "required,dive,min=2,dive,gte=-1.25"
+            }
+          },
+          "ref_items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Obj"
+            },
+            "x-oapi-codegen-extra-tags": {
+              "validate": "omitempty"
+            }
+          },
+          "map": {
+            "type": "object",
+            "minProperties": 1,
+            "maxProperties": 10,
+            "x-oapi-codegen-extra-tags": {
+              "validate": "omitempty,min=1,max=10"
+            }
+          },
+          "custom": {
+            "type": "string",
+            "x-validator": "  email  ",
+            "x-oapi-codegen-extra-tags": {
+              "validate": "omitempty,email"
+            }
+          },
+          "json_ex": {
+            "type": "object",
+            "example": {
+              "k": "v\"q",
+              "n": [
+                1,
+                2.0,
+                null
+              ],
+              "u": "héllo\n"
+            },
+            "x-oapi-codegen-extra-tags": {
+              "validate": "omitempty",
+              "jsonschema": "Example: {'k': 'v'q', 'n': [1, 2.0, null], 'u': 'héllo\\n'}"
+            }
+          },
+          "only_ex": {
+            "type": "integer",
+            "example": 42,
+            "x-oapi-codegen-extra-tags": {
+              "validate": "omitempty",
+              "jsonschema": "Example: 42"
+            }
+          },
+          "dotted": {
+            "type": "string",
+            "description": "Ends with dot.",
+            "example": "it's",
+            "x-oapi-codegen-extra-tags": {
+              "validate": "omitempty",
+              "jsonschema": "Ends with dot. Example: it's"
+            }
+          },
+          "unicode": {
+            "type": "string",
+            "description": "Ünïcødé — ok ✓",
+            "x-mcp": false,
+            "x-oapi-codegen-extra-tags": {
+              "validate": "omitempty",
+              "jsonschema": "Ünïcødé — ok ✓"
+            }
+          }
+        }
+      },
+      "Composed": {
+        "required": [
+          "base"
+        ],
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Obj"
+          },
+          {
+            "type": "object",
+            "required": [
+              "extra"
+            ],
+            "properties": {
+              "base": {
+                "type": "string",
+                "x-oapi-codegen-extra-tags": {
+                  "validate": "required"
+                }
+              },
+              "extra": {
+                "type": "integer",
+                "x-oapi-codegen-extra-tags": {
+                  "validate": "required"
+                }
+              },
+              "other": {
+                "type": "boolean",
+                "x-mcp": true,
+                "description": "d",
+                "x-oapi-codegen-extra-tags": {
+                  "validate": "omitempty",
+                  "jsonschema": "d"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "Existing": {
+        "type": "object",
+        "required": [
+          "a"
+        ],
+        "properties": {
+          "a": {
+            "type": "string",
+            "maxLength": 3,
+            "x-oapi-codegen-extra-tags": {
+              "json": "a",
+              "validate": "required,alpha,max=3"
+            }
+          },
+          "b": {
+            "type": "string",
+            "x-mcp": true,
+            "description": "b",
+            "x-oapi-codegen-extra-tags": {
+              "jsonschema": "b",
+              "validate": "omitempty"
+            }
+          }
+        }
+      },
+      "EmptyThings": {
+        "type": "object",
+        "properties": {},
+        "x-list": [],
+        "x-obj": {}
+      },
+      "Weird": {
+        "type": "string",
+        "enum": [
+          true,
+          false,
+          1.0,
+          2,
+          "s"
+        ],
+        "x-mcp": true,
+        "example": [
+          1,
+          "two"
+        ],
+        "x-oapi-codegen-extra-tags": {
+          "validate": "omitempty",
+          "jsonschema": "Example: [1, 'two']"
+        }
+      },
+      "Dup": {
+        "type": "string",
+        "description": "second",
+        "x-oapi-codegen-extra-tags": {
+          "validate": "omitempty"
+        }
+      },
+      "Escapes": {
+        "type": "string",
+        "description": "tab\tquote\"back\\slash\u0001ctl sep",
+        "x-n": [
+          1.0,
+          1e-07,
+          1e+16,
+          123456789012345678901234567890,
+          0,
+          3.14159,
+          100000.0,
+          0.0001
+        ],
+        "x-oapi-codegen-extra-tags": {
+          "validate": "omitempty"
+        }
+      }
+    },
+    "parameters": {
+      "Skip": {
+        "name": "skip",
+        "in": "query",
+        "schema": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

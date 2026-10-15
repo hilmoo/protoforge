@@ -1,0 +1,84 @@
+/*
+  header
+*/
+
+syntax = "proto3";
+
+package services.v1;
+option go_package = "proto/services/v1;servicesv1";
+
+import "google/protobuf/any.proto";
+import "google/protobuf/timestamp.proto";
+import "models/v1/pet.proto";
+import "models/v1/pet_kind.proto";
+import "models/v1/tag.proto";
+
+service PetService {
+  rpc CreatePet (CreatePetRequest) returns (CreatePetResponse);
+
+  rpc BulkTag (BulkTagRequest) returns (BulkTagResponse);
+
+  rpc Ping (PingRequest) returns (PingResponse);
+
+}
+
+message CreatePetRequest {
+  message Tag {
+    string label = 1;
+
+    optional Owner owner = 2;
+
+    google.protobuf.Any extra = 3;
+  }
+
+  message Owner {
+    string id = 1;
+  }
+
+  // path id
+  string project_id = 10;
+  // The name
+  string name = 1;
+
+  models.v1.PetKind kind = 2;
+
+  optional google.protobuf.Timestamp born_at = 3;
+
+  repeated Tag tags = 4;
+
+  map<string, Tag> tag_map = 5;
+
+  map<string, models.v1.PetKind> kind_map = 6;
+}
+
+message CreatePetResponse {
+  models.v1.Pet data = 1;
+}
+
+message BulkTagRequest {
+  message Owner {
+    string id = 1;
+  }
+
+  message Item {
+    string label = 1;
+
+    optional Owner owner = 2;
+
+    google.protobuf.Any extra = 3;
+  }
+
+  repeated Item tags = 1;
+  models.v1.PetKind kind = 2;
+}
+
+message BulkTagResponse {
+  repeated models.v1.Tag data = 1;
+}
+
+message PingRequest {
+}
+
+message PingResponse {
+}
+

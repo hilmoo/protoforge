@@ -1,0 +1,1 @@
+  [WARN] schema/field 'isbn' has 'pattern' constraint which cannot be expressed as a validator tag. Use 'x-validator' to add a custom tag.

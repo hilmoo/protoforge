@@ -1,0 +1,76 @@
+# Every key protoforge accepts, with non-default values. Must validate against
+# schema/protoforge.schema.json and load with config.Load.
+version: 1
+env_file: .env
+env:
+  GOFLAGS: -mod=mod
+  DSN: ${DATABASE_URL}
+tools:
+  node_runner: npx
+  openapi_generator: java -jar /opt/openapi-generator-cli.jar
+  drizzle_kit: npx drizzle-kit
+  drizzle_docs: npx drizzle-docs
+  tsp: npx tsp
+  openapi_format: npx openapi-format
+  spectral: npx spectral
+  ts_runner: tsx
+migration:
+  dir: db
+  drizzle_config: drizzle.config.ts
+  drizzle_out: drizzle
+  generate: true
+  push: true
+  migrate: false
+  docs:
+    schema_dir: ./src/schema
+    dialect: postgresql
+    format: dbml
+    out: schema.dbml
+  post_push_sql:
+    - ALTER TABLE orders ALTER CONSTRAINT orders_customer_id_fkey DEFERRABLE INITIALLY DEFERRED;
+  sync:
+    to: ../server/migrations
+    suffix: .up.sql
+    extra_replace:
+      - { glob: "*.sql", from: "public.", to: "" }
+  run_after:
+    - echo migration done
+typespec:
+  dir: api
+  entry: ./spec
+  from_drizzle:
+    schema_dir: ../db/src/schema
+    out: spec/_generated/db.tsp
+    namespace: Db.Schema
+    read_only_columns: [id, created_at]
+    require_docs: error
+  run_after:
+    - { cmd: "tsp format spec/**/*.tsp", shell: true }
+openapi:
+  dir: api
+  output: openapi.json
+  format: true
+  go_tags: true
+  lint: .spectral.yaml
+proto:
+  dir: proto
+  registry: registry
+  templates: ./templates
+  proto_package: v2
+  go_package_root: github.com/acme/shop/gen
+  well_known:
+    DateTime: google.protobuf.Timestamp
+    Duration: google.protobuf.Duration
+  any_type: google.protobuf.Any
+  drop_imports: [todo_object_mapping]
+  flatten_requests: true
+  extra_replace:
+    - { glob: "*.proto", regex: '(?m)^// Generated.*\n', to: "" }
+    - { glob: "services/*.proto", delete_line_matching: "^// TODO" }
+  codegen:
+    enabled: true
+    commands: [buf generate, buf lint]
+pipelines:
+  api: [typespec, openapi, proto]
+  db: [migration]
+  everything: [db, api]

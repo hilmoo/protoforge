@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package models.v1;
+option go_package = "proto/models/v1;modelsv1";
+
+import "google/protobuf/timestamp.proto";
+import "models/v1/pet_kind.proto";
+import "models/v1/tag.proto";
+
+message Pet {
+
+  // The name
+  string name = 1;
+
+  PetKind kind = 2;
+
+  optional google.protobuf.Timestamp born_at = 3;
+
+  repeated Tag tags = 4;
+
+  map<string, Tag> tag_map = 5;
+
+  map<string, PetKind> kind_map = 6;
+
+}

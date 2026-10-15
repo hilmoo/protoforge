@@ -1,0 +1,54 @@
+Enum "book_genre" {
+  fiction
+  non_fiction
+  "sci-fi"
+  poetry
+}
+
+Enum "book_format" {
+  hardcover
+  paperback
+  ebook
+}
+
+Table "authors" {
+  "id" uuid [primary key, not null, default: `gen_random_uuid()`]
+  "created_at" timestamptz [not null, default: `now()`]
+  "updated_at" timestamptz [not null, default: `now()`]
+  "name" text [not null, note: 'Display name of the author.']
+  "bio" text [note: 'Short biography.']
+  "born_on" date [note: 'Date of birth.']
+  "active" boolean [not null, default: true, note: 'Whether the author is still publishing.']
+}
+
+Table "books" {
+  "id" uuid [primary key, not null, default: `gen_random_uuid()`]
+  "created_at" timestamptz [not null, default: `now()`]
+  "updated_at" timestamptz [not null, default: `now()`]
+  "author_id" uuid [not null, note: 'Author who wrote the book.']
+  "title" text [not null, note: 'Title of the book.']
+  "isbn" text [not null, unique, note: 'International Standard Book Number.']
+  "genre" book_genre [not null]
+  "formats" book_format [not null, note: 'Available formats.']
+  "tags" text [note: 'Free-form tags.']
+  "co_author_ids" uuid [note: 'Co-author IDs.']
+  "pages" integer [note: 'Number of pages.']
+  "price" numeric [not null, note: 'List price in USD.']
+  "metadata" jsonb [note: 'Arbitrary publisher metadata.']
+
+  indexes {
+    ("author_id") [name: 'books_author_id_idx']
+  }
+}
+
+Table "reviews" {
+  "id" uuid [primary key, not null, default: `gen_random_uuid()`]
+  "created_at" timestamptz [not null, default: `now()`]
+  "updated_at" timestamptz [not null, default: `now()`]
+  "book_id" uuid [not null, note: 'Reviewed book.']
+  "rating" integer [not null, note: 'Rating from 1 to 5.']
+  "body" text
+}
+
+Ref: "books"."author_id" > "authors"."id" [delete: cascade]
+Ref: "reviews"."book_id" > "books"."id" [delete: cascade]

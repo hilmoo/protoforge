@@ -1,0 +1,1024 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Bookstore",
+    "version": "1.0.0",
+    "description": "protoforge sample service"
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Default server",
+      "variables": {}
+    }
+  ],
+  "paths": {
+    "/services.v1.AuthorService/AuthorCreate": {
+      "post": {
+        "operationId": "authorsCreate",
+        "description": "Create an author.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthorModelCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorModelAuthor"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The server could not understand the request due to invalid syntax.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonErrorError400"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The server cannot find the requested resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonErrorError404"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Author"
+        ]
+      }
+    },
+    "/services.v1.AuthorService/AuthorGet": {
+      "post": {
+        "operationId": "authorsGet",
+        "description": "Get an author.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthorModelId"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthorModelAuthor"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The server could not understand the request due to invalid syntax.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonErrorError400"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The server cannot find the requested resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonErrorError404"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Author"
+        ]
+      }
+    },
+    "/services.v1.AuthorService/AuthorList": {
+      "post": {
+        "operationId": "authorsList",
+        "description": "List authors.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AuthorModelAuthor"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The server could not understand the request due to invalid syntax.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonErrorError400"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The server cannot find the requested resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonErrorError404"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Author"
+        ]
+      }
+    },
+    "/covers/{isbn}": {
+      "get": {
+        "operationId": "booksCover",
+        "description": "Get a book cover by ISBN (REST style, with path and query parameters).",
+        "parameters": [
+          {
+            "name": "isbn",
+            "in": "path",
+            "description": "The ISBN.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "width",
+            "in": "query",
+            "description": "Cover width in pixels.",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "maximum": 2048,
+              "minimum": 16
+            },
+            "explode": false
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "description": "Image format.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "png",
+                "jpeg"
+              ]
+            },
+            "explode": false
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookModelId"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The server could not understand the request due to invalid syntax.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonErrorError400"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The server cannot find the requested resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonErrorError404"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Book"
+        ]
+      }
+    },
+    "/services.v1.BookService/BookBulkReview": {
+      "post": {
+        "operationId": "booksBulkReview",
+        "description": "Add several reviews at once.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookModelBulkReviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BookModelReview"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The server could not understand the request due to invalid syntax.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonErrorError400"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The server cannot find the requested resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonErrorError404"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Book"
+        ]
+      }
+    },
+    "/services.v1.BookService/BookCreate": {
+      "post": {
+        "operationId": "booksCreate",
+        "description": "Create a book.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookModelCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookModelBook"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The server could not understand the request due to invalid syntax.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonErrorError400"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The server cannot find the requested resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonErrorError404"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Book"
+        ]
+      }
+    },
+    "/services.v1.BookService/BookDelete": {
+      "post": {
+        "operationId": "booksDelete",
+        "description": "Delete a book.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookModelId"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The request has succeeded."
+          },
+          "400": {
+            "description": "The server could not understand the request due to invalid syntax.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonErrorError400"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The server cannot find the requested resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonErrorError404"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Book"
+        ]
+      }
+    },
+    "/services.v1.BookService/BookGet": {
+      "post": {
+        "operationId": "booksGet",
+        "description": "Get a book.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookModelId"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookModelBook"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The server could not understand the request due to invalid syntax.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonErrorError400"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The server cannot find the requested resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonErrorError404"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Book"
+        ]
+      }
+    },
+    "/services.v1.BookService/BookSearch": {
+      "post": {
+        "operationId": "booksSearch",
+        "description": "Search books.",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookModelSearchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The request has succeeded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookModelSearchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The server could not understand the request due to invalid syntax.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonErrorError400"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The server cannot find the requested resource.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommonErrorError404"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "Book"
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AuthorModelAuthor": {
+        "description": "An author.",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Unique identifier.",
+            "type": "string",
+            "format": "uuid",
+            "example": "4f9c2a8e-1d3b-4c5e-9f7a-2b6d8e0c1a3f"
+          },
+          "created_at": {
+            "description": "When the row was created.",
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "description": "When the row was last updated.",
+            "type": "string",
+            "format": "date-time"
+          },
+          "name": {
+            "description": "Display name of the author.",
+            "type": "string",
+            "example": "Ursula K. Le Guin"
+          },
+          "bio": {
+            "description": "Short biography.",
+            "type": "string"
+          },
+          "born_on": {
+            "description": "Date of birth.",
+            "type": "string",
+            "format": "date",
+            "example": "1929-10-21"
+          },
+          "active": {
+            "description": "Whether the author is still publishing.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "created_at",
+          "updated_at",
+          "name",
+          "active"
+        ]
+      },
+      "AuthorModelCreateRequest": {
+        "description": "An author.",
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "Display name of the author.",
+            "type": "string",
+            "example": "Ursula K. Le Guin"
+          },
+          "bio": {
+            "description": "Short biography.",
+            "type": "string"
+          },
+          "born_on": {
+            "description": "Date of birth.",
+            "type": "string",
+            "format": "date",
+            "example": "1929-10-21"
+          },
+          "active": {
+            "description": "Whether the author is still publishing.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "active"
+        ]
+      },
+      "AuthorModelId": {
+        "type": "object",
+        "properties": {
+          "author_id": {
+            "description": "The author ID.",
+            "type": "string",
+            "format": "uuid",
+            "example": "4f9c2a8e-1d3b-4c5e-9f7a-2b6d8e0c1a3f"
+          }
+        },
+        "required": [
+          "author_id"
+        ]
+      },
+      "BookModelBook": {
+        "description": "A book.",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Unique identifier.",
+            "type": "string",
+            "format": "uuid",
+            "example": "4f9c2a8e-1d3b-4c5e-9f7a-2b6d8e0c1a3f"
+          },
+          "created_at": {
+            "description": "When the row was created.",
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "description": "When the row was last updated.",
+            "type": "string",
+            "format": "date-time"
+          },
+          "author_id": {
+            "description": "Author who wrote the book.",
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "description": "Title of the book.",
+            "type": "string",
+            "example": "The Left Hand of Darkness"
+          },
+          "isbn": {
+            "description": "International Standard Book Number.",
+            "type": "string"
+          },
+          "genre": {
+            "description": "Primary genre.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DbSchemaBookGenre"
+              }
+            ]
+          },
+          "formats": {
+            "description": "Available formats.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DbSchemaBookFormat"
+            }
+          },
+          "tags": {
+            "description": "Free-form tags.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "classic",
+              "award-winner"
+            ]
+          },
+          "co_author_ids": {
+            "description": "Co-author IDs.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DbSchemaUuid"
+            }
+          },
+          "pages": {
+            "description": "Number of pages.",
+            "type": "integer"
+          },
+          "price": {
+            "description": "List price in USD.",
+            "type": "number",
+            "example": 12.5
+          },
+          "metadata": {
+            "description": "Arbitrary publisher metadata."
+          }
+        },
+        "required": [
+          "id",
+          "created_at",
+          "updated_at",
+          "author_id",
+          "title",
+          "isbn",
+          "genre",
+          "formats",
+          "price"
+        ]
+      },
+      "BookModelBulkReviewRequest": {
+        "type": "object",
+        "properties": {
+          "book_id": {
+            "description": "The book being reviewed.",
+            "type": "string",
+            "format": "uuid"
+          },
+          "reviews": {
+            "description": "Reviews to add.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BookModelReviewInput"
+            }
+          }
+        },
+        "required": [
+          "book_id",
+          "reviews"
+        ]
+      },
+      "BookModelCreateRequest": {
+        "description": "A book.",
+        "type": "object",
+        "properties": {
+          "author_id": {
+            "description": "Author who wrote the book.",
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "description": "Title of the book.",
+            "type": "string",
+            "example": "The Left Hand of Darkness"
+          },
+          "isbn": {
+            "description": "International Standard Book Number.",
+            "type": "string"
+          },
+          "genre": {
+            "description": "Primary genre.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DbSchemaBookGenre"
+              }
+            ]
+          },
+          "formats": {
+            "description": "Available formats.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DbSchemaBookFormat"
+            }
+          },
+          "tags": {
+            "description": "Free-form tags.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": [
+              "classic",
+              "award-winner"
+            ]
+          },
+          "co_author_ids": {
+            "description": "Co-author IDs.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DbSchemaUuid"
+            }
+          },
+          "pages": {
+            "description": "Number of pages.",
+            "type": "integer"
+          },
+          "price": {
+            "description": "List price in USD.",
+            "type": "number",
+            "example": 12.5
+          },
+          "metadata": {
+            "description": "Arbitrary publisher metadata."
+          }
+        },
+        "required": [
+          "author_id",
+          "title",
+          "isbn",
+          "genre",
+          "formats",
+          "price"
+        ]
+      },
+      "BookModelId": {
+        "type": "object",
+        "properties": {
+          "book_id": {
+            "description": "The book ID.",
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "book_id"
+        ]
+      },
+      "BookModelReview": {
+        "description": "A review.",
+        "type": "object",
+        "properties": {
+          "id": {
+            "description": "Unique identifier.",
+            "type": "string",
+            "format": "uuid",
+            "example": "4f9c2a8e-1d3b-4c5e-9f7a-2b6d8e0c1a3f"
+          },
+          "created_at": {
+            "description": "When the row was created.",
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "description": "When the row was last updated.",
+            "type": "string",
+            "format": "date-time"
+          },
+          "book_id": {
+            "description": "Reviewed book.",
+            "type": "string",
+            "format": "uuid"
+          },
+          "rating": {
+            "description": "Rating from 1 to 5.",
+            "type": "integer",
+            "example": 5
+          },
+          "body": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "created_at",
+          "updated_at",
+          "book_id",
+          "rating"
+        ]
+      },
+      "BookModelReviewInput": {
+        "type": "object",
+        "properties": {
+          "rating": {
+            "description": "Rating from 1 to 5.",
+            "type": "integer",
+            "format": "int32",
+            "maximum": 5,
+            "minimum": 1
+          },
+          "body": {
+            "description": "Review text.",
+            "type": "string",
+            "maxLength": 5000
+          }
+        },
+        "required": [
+          "rating"
+        ]
+      },
+      "BookModelSearchRequest": {
+        "description": "Search books. Exposed to MCP tools.",
+        "type": "object",
+        "properties": {
+          "query": {
+            "description": "Full-text query.",
+            "example": "left hand",
+            "maxLength": 200,
+            "minLength": 2,
+            "type": "string"
+          },
+          "genre": {
+            "description": "Restrict to one genre.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DbSchemaBookGenre"
+              }
+            ]
+          },
+          "limit": {
+            "description": "Maximum number of results.",
+            "type": "integer",
+            "format": "int32",
+            "default": 20,
+            "maximum": 100,
+            "minimum": 1
+          },
+          "published_after": {
+            "description": "Only books published after this date.",
+            "type": "string",
+            "format": "date"
+          },
+          "deliver_at": {
+            "description": "Preferred delivery time.",
+            "type": "string",
+            "format": "time"
+          },
+          "isbn": {
+            "description": "ISBN filter.",
+            "type": "string",
+            "pattern": "^[0-9-]{10,17}$",
+            "x-validator": "isbn"
+          },
+          "tags": {
+            "description": "Required tags.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 5,
+            "minItems": 1
+          },
+          "include_out_of_print": {
+            "description": "Include out-of-print books.",
+            "type": "boolean"
+          },
+          "sort": {
+            "description": "Sort order.",
+            "type": "string",
+            "enum": [
+              "relevance",
+              "newest",
+              "price"
+            ]
+          }
+        },
+        "required": [
+          "query",
+          "include_out_of_print"
+        ],
+        "x-mcp": true
+      },
+      "BookModelSearchResponse": {
+        "description": "A page of search results.",
+        "type": "object",
+        "properties": {
+          "items": {
+            "description": "Matching books.",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BookModelBook"
+            }
+          },
+          "total": {
+            "description": "Total number of matches.",
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ]
+      },
+      "CommonErrorError": {
+        "description": "An error response.",
+        "type": "object",
+        "properties": {
+          "message": {
+            "description": "Human-readable explanation.",
+            "type": "string",
+            "example": "Book not found"
+          },
+          "code": {
+            "description": "Machine-readable error code.",
+            "type": "integer",
+            "example": 404
+          },
+          "details": {
+            "description": "Extra details, keyed by field.",
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "message",
+          "code"
+        ]
+      },
+      "CommonErrorError400": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/CommonErrorError"
+          }
+        ]
+      },
+      "CommonErrorError404": {
+        "type": "object",
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/CommonErrorError"
+          }
+        ]
+      },
+      "DbSchemaBookFormat": {
+        "type": "string",
+        "enum": [
+          "hardcover",
+          "paperback",
+          "ebook"
+        ]
+      },
+      "DbSchemaBookGenre": {
+        "type": "string",
+        "enum": [
+          "fiction",
+          "non_fiction",
+          "sci-fi",
+          "poetry"
+        ]
+      },
+      "DbSchemaUuid": {
+        "type": "string",
+        "format": "uuid"
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Author"
+    },
+    {
+      "name": "Book"
+    }
+  ]
+}

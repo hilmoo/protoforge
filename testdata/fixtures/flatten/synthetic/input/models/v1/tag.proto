@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package models.v1;
+
+import "google/protobuf/any.proto";
+
+message Tag {
+
+  string label = 1;
+
+  optional Owner owner = 2;
+
+  google.protobuf.Any extra = 3;
+
+}
+
+message Owner {
+
+  string id = 1;
+
+}

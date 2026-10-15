@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+package models.v1;
+
+enum PetKind {
+  PET_KIND_DOG = 0;
+  PET_KIND_CAT = 1;
+}
