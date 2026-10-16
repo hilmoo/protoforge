@@ -2,5 +2,15 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended"
+  ],
+  "automerge": true,
+  "packageRules": [
+    {
+      "description": "Group all TypeSpec packages so peer dependencies stay in sync",
+      "matchPackageNames": [
+        "@typespec/**"
+      ],
+      "groupName": "typespec"
+    }
   ]
 }
