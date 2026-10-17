@@ -87,3 +87,18 @@ jobs:
         with:
           version: "~> v2"
           args: build --snapshot --clean
+
+  ci-ok:
+    name: CI OK
+    if: always()
+    needs: [test, postgres, release-snapshot]
+    runs-on: ubuntu-latest
+    steps:
+      - name: check results
+        run: |
+          echo '${{ toJSON(needs) }}'
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" || \
+                "${{ contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "One or more required jobs failed or were cancelled"
+            exit 1
+          fi
