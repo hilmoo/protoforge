@@ -32,7 +32,7 @@ type Config struct {
 	TypeSpec  *TypeSpec           `yaml:"typespec,omitempty" nullable:"true" doc:"TypeSpec stage: embedded Drizzle -> TypeSpec generator and tsp compile. Absent = stage disabled; empty = enabled with defaults."`
 	OpenAPI   *OpenAPI            `yaml:"openapi,omitempty" nullable:"true" doc:"OpenAPI stage: openapi-format and Go struct-tag injection. Absent = stage disabled; empty = enabled with defaults."`
 	Proto     *Proto              `yaml:"proto,omitempty" nullable:"true" doc:"Proto stage: openapi-generator protobuf-schema passes, normalisation and request flattening. Absent = stage disabled; empty = enabled with defaults."`
-	Pipelines map[string][]string `yaml:"pipelines,omitempty" doc:"Named sequences of stages, single steps (stage.step, e.g. typespec.from_drizzle) and/or other pipelines. Defaults: api = [typespec, openapi, proto], sql = [migration], all = [sql, api]." stageref:"true"`
+	Pipelines map[string][]string `yaml:"pipelines,omitempty" doc:"Named sequences of stages, single steps (stage.step, e.g. typespec.from_drizzle) and/or other pipelines. Defaults: api = [typespec, openapi, proto], sql = [migration], all = [sql, api], preview = [migration.docs, typespec, openapi] (no DB writes), proto-gen = api without proto codegen (no DB writes)." stageref:"true"`
 
 	// Root is the directory holding the config file. Every relative path is
 	// resolved against it (or against a stage dir, which is itself relative to Root).
@@ -238,6 +238,10 @@ func DefaultPipelines() map[string][]string {
 		"api": {"typespec", "openapi", "proto"},
 		"sql": {"migration"},
 		"all": {"sql", "api"},
+		// Schema change preview: docs + OpenAPI, never touches the database.
+		"preview": {"migration.docs", "typespec", "openapi"},
+		// Schema -> OpenAPI -> proto without codegen or database writes.
+		"proto-gen": {"typespec", "openapi", "proto.models", "proto.services", "proto.flatten", "proto.extra_replace", "proto.cleanup"},
 	}
 }
 

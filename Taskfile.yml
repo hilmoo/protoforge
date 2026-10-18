@@ -1,0 +1,73 @@
+# https://taskfile.dev
+
+version: '3'
+
+vars:
+  PF: protoforge
+
+tasks:
+  default:
+    desc: List tasks
+    cmds:
+      - task --list
+    silent: true
+
+  # --- 1. the stock pipelines ------------------------------------------------
+  api:
+    desc: typespec -> openapi -> proto (includes proto codegen)
+    cmds:
+      - '{{.PF}} run api'
+
+  sql:
+    desc: Drizzle migration stage (generate/push/migrate/sync as configured)
+    cmds:
+      - '{{.PF}} run sql'
+
+  all:
+    desc: sql, then api
+    cmds:
+      - '{{.PF}} run all'
+
+  # --- 2. preview a schema change, database untouched ------------------------
+  preview:
+    desc: Drizzle schema -> DBML docs + OpenAPI. Never touches the database
+    cmds:
+      - '{{.PF}} run preview'
+
+  preview:watch:
+    desc: Re-run `preview` whenever the Drizzle schema changes
+    watch: true
+    sources:
+      - migration/src/schema/**/*.ts
+    cmds:
+      - task: preview
+
+  # --- 3. proto without codegen, database untouched --------------------------
+  proto:
+    desc: Drizzle schema -> OpenAPI -> .proto, no codegen, no database writes
+    cmds:
+      - '{{.PF}} run proto-gen'
+
+  # --- quality of life ---------------------------------------------------------
+  doctor:
+    desc: Check that the external tools the enabled stages need are installed
+    cmds:
+      - '{{.PF}} doctor'
+
+  plan:
+    desc: Dry-run a pipeline and print what would happen (PIPELINE=all by default)
+    vars:
+      PIPELINE: '{{.PIPELINE | default "all"}}'
+    cmds:
+      - '{{.PF}} run {{.PIPELINE}} --dry-run'
+
+  lint:
+    desc: Spectral-lint the OpenAPI document
+    cmds:
+      - '{{.PF}} run openapi.lint'
+
+  verify:
+    desc: CI check - regenerate everything that is committed and fail on drift
+    cmds:
+      - task: proto
+      - git diff --exit-code -- openapi proto

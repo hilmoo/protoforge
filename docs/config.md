@@ -145,7 +145,13 @@ pipelines:
   api: [typespec, openapi, proto]
   sql: [migration]
   all: [sql, api]
+  preview: [migration.docs, typespec, openapi]   # docs + OpenAPI, never touches the database
+  proto-gen: [typespec, openapi, proto.models, proto.services, proto.flatten, proto.extra_replace, proto.cleanup]
+                                                 # schema -> proto, no codegen, no database writes
 ```
+
+`proto-gen` lists steps explicitly, so `proto.flatten` runs even when
+`proto.flatten_requests` is false.
 
 Entries may name stages, single steps (`stage.step`) or other pipelines. A step
 entry runs just that step, even one that is off by default (e.g. `openapi.lint`):

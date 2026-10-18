@@ -191,6 +191,9 @@ proto:
 # Pipelines: named sequences of stages and/or other pipelines.
 # Defaults (always available unless overridden):
 #   api = [typespec, openapi, proto]   sql = [migration]   all = [sql, api]
+#   preview   = [migration.docs, typespec, openapi]   DBML docs + OpenAPI, no DB writes
+#   proto-gen = [typespec, openapi, proto.models, proto.services, proto.flatten,
+#                proto.extra_replace, proto.cleanup]   schema -> proto, no codegen, no DB writes
 # Names must not collide with a stage; cycles and unknown names are errors.
 # ---------------------------------------------------------------------------
 pipelines:
