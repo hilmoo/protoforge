@@ -147,7 +147,19 @@ pipelines:
   all: [sql, api]
 ```
 
-Entries may name stages or other pipelines. Cycles and unknown names are rejected,
+Entries may name stages, single steps (`stage.step`) or other pipelines. A step
+entry runs just that step, even one that is off by default (e.g. `openapi.lint`):
+
+```yaml
+pipelines:
+  drizzle-docs: [migration.docs]                    # generate drizzle docs only
+  drizzle-to-tsp: [typespec.from_drizzle]           # Drizzle -> TypeSpec only
+  openapi-only: [typespec.compile, openapi]         # compile TypeSpec -> OpenAPI, then post-process
+  check: [typespec.from_drizzle, typespec.compile, openapi.lint]
+```
+
+Steps per stage: see the README. The same references work on the command line:
+`protoforge run typespec.from_drizzle`. Cycles and unknown names are rejected,
 and a pipeline must not share a name with a stage. A stage whose section is absent is
 skipped with a warning.
 

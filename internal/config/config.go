@@ -32,7 +32,7 @@ type Config struct {
 	TypeSpec  *TypeSpec           `yaml:"typespec,omitempty" nullable:"true" doc:"TypeSpec stage: embedded Drizzle -> TypeSpec generator and tsp compile. Absent = stage disabled; empty = enabled with defaults."`
 	OpenAPI   *OpenAPI            `yaml:"openapi,omitempty" nullable:"true" doc:"OpenAPI stage: openapi-format and Go struct-tag injection. Absent = stage disabled; empty = enabled with defaults."`
 	Proto     *Proto              `yaml:"proto,omitempty" nullable:"true" doc:"Proto stage: openapi-generator protobuf-schema passes, normalisation and request flattening. Absent = stage disabled; empty = enabled with defaults."`
-	Pipelines map[string][]string `yaml:"pipelines,omitempty" doc:"Named sequences of stages and/or other pipelines. Defaults: api = [typespec, openapi, proto], sql = [migration], all = [sql, api]." stageref:"true"`
+	Pipelines map[string][]string `yaml:"pipelines,omitempty" doc:"Named sequences of stages, single steps (stage.step, e.g. typespec.from_drizzle) and/or other pipelines. Defaults: api = [typespec, openapi, proto], sql = [migration], all = [sql, api]." stageref:"true"`
 
 	// Root is the directory holding the config file. Every relative path is
 	// resolved against it (or against a stage dir, which is itself relative to Root).
@@ -188,6 +188,39 @@ type Codegen struct {
 
 // StageNames lists the built-in stages in pipeline order.
 var StageNames = []string{"migration", "typespec", "openapi", "proto"}
+
+// StageSteps lists the sub-steps of each stage in run order. It mirrors the
+// Steps() of the stage implementations (checked by a test in package stages) and
+// makes `stage.step` references such as typespec.from_drizzle valid in pipelines.
+var StageSteps = map[string][]string{
+	"migration": {"generate", "docs", "push", "post_push_sql", "migrate", "sync", "run_after"},
+	"typespec":  {"from_drizzle", "compile", "run_after"},
+	"openapi":   {"format", "go_tags", "lint", "run_after"},
+	"proto":     {"models", "services", "flatten", "extra_replace", "cleanup", "codegen", "run_after"},
+}
+
+// SplitRef splits a "stage" or "stage.step" reference. step is "" for a whole stage.
+func SplitRef(ref string) (stage, step string) {
+	stage, step, _ = strings.Cut(ref, ".")
+	return
+}
+
+// IsRef reports whether ref is a built-in stage or a known stage.step.
+func IsRef(ref string) bool {
+	stage, step := SplitRef(ref)
+	if !IsStage(stage) {
+		return false
+	}
+	if step == "" && !strings.Contains(ref, ".") {
+		return true
+	}
+	for _, s := range StageSteps[stage] {
+		if s == step {
+			return true
+		}
+	}
+	return false
+}
 
 // IsStage reports whether name is a built-in stage.
 func IsStage(name string) bool {
@@ -428,9 +461,9 @@ func (c *Config) Validate() error {
 			add("pipelines.%s: empty pipeline", name)
 		}
 		for _, s := range steps {
-			if !IsStage(s) {
+			if !IsRef(s) {
 				if _, ok := c.Pipelines[s]; !ok {
-					add("pipelines.%s: unknown stage or pipeline %q", name, s)
+					add("pipelines.%s: unknown stage, step or pipeline %q", name, s)
 				}
 			}
 		}
@@ -482,19 +515,20 @@ func validateCommands(path string, cmds []Command, add func(string, ...any)) {
 	}
 }
 
-// Expand resolves pipeline names to an ordered stage list. Stages are not
-// de-duplicated: `run api api` runs api twice, like calling a task twice.
+// Expand resolves pipeline names to an ordered list of "stage" or "stage.step"
+// references. Entries are not de-duplicated: `run api api` runs api twice, like
+// calling a task twice.
 func (c *Config) Expand(names []string) ([]string, error) {
 	var out []string
 	var walk func(n string, stack []string) error
 	walk = func(n string, stack []string) error {
-		if IsStage(n) {
+		if IsRef(n) {
 			out = append(out, n)
 			return nil
 		}
 		steps, ok := c.Pipelines[n]
 		if !ok {
-			return fmt.Errorf("unknown stage or pipeline %q", n)
+			return fmt.Errorf("unknown stage, step or pipeline %q", n)
 		}
 		for _, s := range stack {
 			if s == n {

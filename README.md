@@ -64,7 +64,7 @@ to three levels deep) and fills in the paths. It never overwrites without `--for
 
 ```
 protoforge init [--force]
-protoforge run [pipeline|stage ...]              # default: all
+protoforge run [pipeline|stage|stage.step ...]   # default: all
 protoforge stage <name> [--only step[,step]]     # run one stage, or selected steps
 protoforge doctor                                # check external tools
 protoforge config print                          # resolved config (defaults + env applied)
@@ -79,6 +79,9 @@ Examples:
 ```sh
 protoforge run api                         # typespec → openapi → proto
 protoforge run typespec openapi            # stages and pipelines can be mixed
+protoforge run typespec.from_drizzle       # Drizzle → TypeSpec only
+protoforge run migration.docs              # drizzle docs only
+protoforge run typespec.compile            # TypeSpec → OpenAPI only
 protoforge stage openapi --only format     # a single step
 protoforge stage migration --only post_push_sql
 protoforge run all --continue-on-error     # report every failure at the end

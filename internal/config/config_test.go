@@ -21,7 +21,7 @@ func TestParseErrors(t *testing.T) {
 		{"rule with two kinds", "version: 1\nproto:\n  extra_replace:\n    - {glob: '*', from: a, regex: b}\n", "exactly one of"},
 		{"rule bad regex", "version: 1\nproto:\n  extra_replace:\n    - {glob: '*', regex: '('}\n", "invalid regex"},
 		{"rule missing glob", "version: 1\nproto:\n  extra_replace:\n    - {from: a}\n", "glob: required"},
-		{"pipeline unknown", "version: 1\npipelines:\n  x: [nope]\n", `unknown stage or pipeline "nope"`},
+		{"pipeline unknown", "version: 1\npipelines:\n  x: [nope]\n", `unknown stage, step or pipeline "nope"`},
 		{"pipeline cycle", "version: 1\npipelines:\n  a: [b]\n  b: [a]\n", "pipeline cycle"},
 		{"pipeline named like stage", "version: 1\npipelines:\n  proto: [api]\n", "collides with a built-in stage"},
 		{"empty command", "version: 1\nproto:\n  run_after: ['  ']\n", "empty command"},
@@ -79,6 +79,26 @@ func TestExpand(t *testing.T) {
 	want := []string{"migration", "typespec", "openapi", "proto", "typespec", "migration"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %v", got)
+	}
+}
+
+func TestExpandSteps(t *testing.T) {
+	c, err := Parse([]byte("version: 1\npipelines:\n  gen: [typespec.from_drizzle, migration.docs]\n  both: [gen, openapi]\n"), "/repo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := c.Expand([]string{"both", "proto.models"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"typespec.from_drizzle", "migration.docs", "openapi", "proto.models"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %v", got)
+	}
+	for _, bad := range []string{"typespec.nope", "nope.compile", "typespec."} {
+		if _, err := Parse([]byte("version: 1\npipelines:\n  x: ["+bad+"]\n"), "/repo"); err == nil {
+			t.Errorf("%q accepted", bad)
+		}
 	}
 }
 

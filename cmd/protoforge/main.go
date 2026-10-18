@@ -109,9 +109,9 @@ func isTerminal(f *os.File) bool {
 
 func runCmd(g *globals) *cobra.Command {
 	return &cobra.Command{
-		Use:     "run [pipeline|stage ...]",
-		Short:   "Run pipelines and/or stages in order (default: all)",
-		Example: "  protoforge run api\n  protoforge run typespec openapi\n  protoforge run all --dry-run",
+		Use:     "run [pipeline|stage|stage.step ...]",
+		Short:   "Run pipelines, stages and/or single steps in order (default: all)",
+		Example: "  protoforge run api\n  protoforge run typespec openapi\n  protoforge run typespec.from_drizzle\n  protoforge run migration.docs typespec.compile\n  protoforge run all --dry-run",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx, err := setup(g)
 			if err != nil {
@@ -129,15 +129,20 @@ func runCmd(g *globals) *cobra.Command {
 			}
 			var errs []error
 			for _, n := range names {
-				if !ctx.Cfg.StageEnabled(n) {
-					ctx.R.Warnf(n, "stage not configured in %s; skipped", config.FileName)
+				stage, step := config.SplitRef(n)
+				if !ctx.Cfg.StageEnabled(stage) {
+					ctx.R.Warnf(stage, "stage not configured in %s; skipped", config.FileName)
 					continue
 				}
-				s, err := stages.New(ctx, n)
+				s, err := stages.New(ctx, stage)
 				if err != nil {
 					return err
 				}
-				if err := stages.RunStage(ctx, s, nil); err != nil {
+				var only []string
+				if step != "" {
+					only = []string{step}
+				}
+				if err := stages.RunStage(ctx, s, only); err != nil {
 					if !ctx.ContinueOnError {
 						return err
 					}

@@ -430,7 +430,7 @@
           "type": "string"
         }
       },
-      "description": "Named sequences of stages and/or other pipelines. Defaults: api = [typespec, openapi, proto], sql = [migration], all = [sql, api].",
+      "description": "Named sequences of stages, single steps (stage.step, e.g. typespec.from_drizzle) and/or other pipelines. Defaults: api = [typespec, openapi, proto], sql = [migration], all = [sql, api].",
       "propertyNames": {
         "not": {
           "enum": [

@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -292,5 +293,26 @@ func TestRunStageOnly(t *testing.T) {
 	}
 	if _, err := New(ctx, "proto"); err == nil {
 		t.Fatal("unconfigured stage should error")
+	}
+}
+
+// config.StageSteps must list exactly the steps the stages implement, in order.
+func TestStageStepsMatchConfig(t *testing.T) {
+	ctx := &Ctx{Cfg: &config.Config{
+		Migration: &config.Migration{}, TypeSpec: &config.TypeSpec{},
+		OpenAPI: &config.OpenAPI{}, Proto: &config.Proto{},
+	}}
+	for _, name := range config.StageNames {
+		s, err := New(ctx, name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var got []string
+		for _, st := range s.Steps() {
+			got = append(got, st.Name)
+		}
+		if !reflect.DeepEqual(got, config.StageSteps[name]) {
+			t.Errorf("%s: steps %v, config.StageSteps %v", name, got, config.StageSteps[name])
+		}
 	}
 }
