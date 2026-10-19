@@ -10,10 +10,12 @@ import (
 
 // NormOptions drives the built-in proto normalisations (the old in-place line-editing chain).
 type NormOptions struct {
-	Version       string   // proto_package, e.g. "v1"
-	GoPackageRoot string   // e.g. "proto"
-	AnyType       string   // e.g. "google.protobuf.Any"; "" disables the AnyType rewrite
-	DropImports   []string // import stems (prefixes) to delete
+	Version         string   // models proto_package, e.g. "v1"
+	Spec            string   // spec name: package services.<spec>.<v>; "" gives services.<v>
+	ServicesVersion string   // version segment of the services package; "" means Version
+	GoPackageRoot   string   // e.g. "proto"
+	AnyType         string   // e.g. "google.protobuf.Any"; "" disables the AnyType rewrite
+	DropImports     []string // import stems (prefixes) to delete
 }
 
 // goPkgSuffix turns "v1" into the Go package suffix used in go_package ("modelsv1").
@@ -67,16 +69,24 @@ func NormalizeModel(s string, o NormOptions) string {
 
 var servicesPkgRe = regexp.MustCompile(`^package openapitools\.services\..*;`)
 
-// NormalizeService reproduces the `gen-services-from-openapi` line edits:
+// NormalizeService reproduces the `gen-services-from-openapi` line edits, with
+// the spec name in the package (here spec "core"):
 //
 //	/import public "models\/common_error_error/d
 //	s|import public "models/|import "models/v1/|g
-//	s/^package openapitools\.services\..*;/package services.v1;\noption go_package = "proto\/services\/v1;servicesv1";/
+//	s/^package openapitools\.services\..*;/package services.core.v1;\noption go_package = "proto\/services\/core\/v1;corev1";/
 func NormalizeService(s string, o NormOptions) string {
-	v := o.Version
+	v, sv := o.Version, o.ServicesVersion
+	if sv == "" {
+		sv = v
+	}
 	s = textops.DeleteLines(s, func(l string) bool { return dropImport(l, v, o.DropImports) })
 	s = strings.ReplaceAll(s, `import public "models/`, `import "models/`+v+`/`)
-	repl := "package services." + v + ";\noption go_package = \"" + o.GoPackageRoot + "/services/" + v + ";services" + goPkgSuffix(v) + "\";"
+	pkg, dir, goName := "services.", "services/", "services"
+	if o.Spec != "" {
+		pkg, dir, goName = pkg+o.Spec+".", dir+o.Spec+"/", o.Spec
+	}
+	repl := "package " + pkg + sv + ";\noption go_package = \"" + o.GoPackageRoot + "/" + dir + sv + ";" + goPkgSuffix(goName+sv) + "\";"
 	return textops.ReplaceLines(s, servicesPkgRe, strings.ReplaceAll(repl, "$", "$$"))
 }
 

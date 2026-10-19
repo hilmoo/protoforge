@@ -97,6 +97,9 @@ func fieldSchema(f reflect.StructField) omap {
 	if p := f.Tag.Get("pattern"); p != "" {
 		s.set("pattern", p)
 	}
+	if p := f.Tag.Get("keypattern"); p != "" {
+		s.set("propertyNames", omap{}.with("pattern", p))
+	}
 	if f.Tag.Get("stageref") == "true" {
 		s.set("propertyNames", omap{}.with("not", omap{}.with("enum", StageNames)))
 		s.set("examples", []any{map[string][]string{"api": {"typespec", "openapi", "proto"}}})

@@ -13,7 +13,6 @@ migration:
 
 typespec:
   dir: api
-  entry: ./src
   from_drizzle:
     schema_dir: ../db/src/schema
     out: src/_generated/db.tsp

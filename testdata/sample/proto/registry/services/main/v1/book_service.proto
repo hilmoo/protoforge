@@ -10,8 +10,8 @@
 
 syntax = "proto3";
 
-package services.v1;
-option go_package = "proto/services/v1;servicesv1";
+package services.main.v1;
+option go_package = "proto/services/main/v1;mainv1";
 
 import "google/protobuf/any.proto";
 import "models/v1/book_model_book.proto";

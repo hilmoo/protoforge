@@ -85,6 +85,7 @@ protoforge run typespec.compile            # TypeSpec → OpenAPI only
 protoforge stage openapi --only format     # a single step
 protoforge stage migration --only post_push_sql
 protoforge run all --continue-on-error     # report every failure at the end
+protoforge run api --spec billing          # only one service (see specs)
 ```
 
 Steps per stage (the order they run in):
@@ -128,6 +129,9 @@ proto:
 Key rules:
 
 - **Absent section = stage disabled; empty section (`openapi:`) = enabled with defaults.**
+- Several services: list them under `specs:` (one TypeSpec entry → one OpenAPI
+  document → `registry/services/<name>/<v>` each, sharing one models package). Without
+  `specs`, there is one spec `main` compiled from `./src` to `openapi.json`.
 - Relative paths resolve against the config file's directory; a stage's own paths
   against that stage's `dir`. Forward slashes work everywhere.
 - Unknown keys are errors with line numbers, and the whole file is validated before

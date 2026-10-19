@@ -30,6 +30,7 @@ type globals struct {
 	verbose         bool
 	noColor         bool
 	continueOnError bool
+	specs           []string
 }
 
 func main() {
@@ -61,6 +62,7 @@ func newRoot() *cobra.Command {
 	f.BoolVar(&g.verbose, "verbose", false, "verbose output (also keeps the extracted drizzle script)")
 	f.BoolVar(&g.noColor, "no-color", false, "disable colored output")
 	f.BoolVar(&g.continueOnError, "continue-on-error", false, "keep going after a failed step and report all failures at the end")
+	f.StringSliceVar(&g.specs, "spec", nil, "limit per-spec work to these specs (repeatable or comma-separated; default: every spec)")
 
 	root.AddCommand(initCmd(), runCmd(g), stageCmd(g), doctorCmd(g), configCmd(g), versionCmd())
 	return root
@@ -82,6 +84,11 @@ func setup(g *globals) (*stages.Ctx, error) {
 	if err != nil {
 		return nil, err
 	}
+	for _, s := range g.specs {
+		if _, ok := cfg.Specs[s]; !ok {
+			return nil, fmt.Errorf("unknown spec %q (specs: %s)", s, strings.Join(cfg.SpecNames(), ", "))
+		}
+	}
 	var fileEnv map[string]string
 	if cfg.EnvFile != "" {
 		p := cfg.Abs("", cfg.EnvFile)
@@ -99,7 +106,7 @@ func setup(g *globals) (*stages.Ctx, error) {
 	if nr == "" {
 		nr = runner.DetectNodeRunner(cfg.Root)
 	}
-	return &stages.Ctx{Cfg: cfg, R: r, NodeRunner: nr, ContinueOnError: g.continueOnError}, nil
+	return &stages.Ctx{Cfg: cfg, R: r, NodeRunner: nr, ContinueOnError: g.continueOnError, Specs: g.specs}, nil
 }
 
 func isTerminal(f *os.File) bool {
@@ -111,7 +118,7 @@ func runCmd(g *globals) *cobra.Command {
 	return &cobra.Command{
 		Use:     "run [pipeline|stage|stage.step ...]",
 		Short:   "Run pipelines, stages and/or single steps in order (default: all)",
-		Example: "  protoforge run api\n  protoforge run typespec openapi\n  protoforge run typespec.from_drizzle\n  protoforge run migration.docs typespec.compile\n  protoforge run all --dry-run",
+		Example: "  protoforge run api\n  protoforge run api --spec billing\n  protoforge run typespec openapi\n  protoforge run typespec.from_drizzle\n  protoforge run migration.docs typespec.compile\n  protoforge run all --dry-run",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx, err := setup(g)
 			if err != nil {

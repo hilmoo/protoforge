@@ -32,21 +32,22 @@ func (t *TypeSpec) Steps() []Step {
 	}
 }
 
-// OpenAPIOutput is where the compiled OpenAPI document goes.
-func OpenAPIOutput(cfg *config.Config) string {
+// OpenAPIOutput is where the OpenAPI document compiled from s goes.
+func OpenAPIOutput(cfg *config.Config, s *config.Spec) string {
 	if cfg.OpenAPI != nil {
-		return cfg.Abs(cfg.OpenAPI.Dir, cfg.OpenAPI.Output)
+		return cfg.Abs(cfg.OpenAPI.Dir, s.Output)
 	}
-	return cfg.Abs(cfg.TypeSpec.Dir, "openapi.json")
+	return cfg.Abs(cfg.TypeSpec.Dir, s.Output)
 }
 
+// compile runs `tsp compile <entry>` once per selected spec.
 func (t *TypeSpec) compile() error {
 	dir := t.dir()
-	argv, err := t.ctx.tool(runner.ToolSpec{Name: "tsp", Bin: "tsp", Override: t.ctx.Cfg.Tools.TSP, Node: true}, dir)
+	tsp, err := t.ctx.tool(runner.ToolSpec{Name: "tsp", Bin: "tsp", Override: t.ctx.Cfg.Tools.TSP, Node: true}, dir)
 	if err != nil {
 		return err
 	}
-	argv = append(argv, "compile", t.c.Entry)
+	var conf []string
 	if !exists(filepath.Join(dir, "tspconfig.yaml")) {
 		tmp, err := os.MkdirTemp("", "protoforge-tsp-")
 		if err != nil {
@@ -58,17 +59,32 @@ func (t *TypeSpec) compile() error {
 			return err
 		}
 		t.ctx.R.Debugf(t.Name(), "tspconfig.yaml not found; using the built-in default")
-		argv = append(argv, "--config", p)
+		conf = []string{"--config", p}
 	}
+	return t.ctx.eachSpec(func(s spec) error {
+		argv := append(append(append([]string{}, tsp...), "compile", s.Entry), conf...)
+		return t.compileSpec(dir, argv, s)
+	})
+}
+
+func (t *TypeSpec) compileSpec(dir string, argv []string, s spec) error {
 	if err := t.ctx.run(t.Name(), dir, argv); err != nil {
 		return err
 	}
 
 	// Replaces `cp ./@typespec/openapi3/openapi.json ./openapi.json; rm -r @typespec`.
 	emitted := filepath.Join(dir, "@typespec", "openapi3", "openapi.json")
-	out := OpenAPIOutput(t.ctx.Cfg)
+	out := OpenAPIOutput(t.ctx.Cfg, s.Spec)
 	if t.ctx.R.FileOp(t.Name(), "move %s -> %s", t.ctx.Cfg.Rel(emitted), t.ctx.Cfg.Rel(out)) {
 		if !exists(emitted) {
+			// One document per @service namespace: openapi.<Namespace>.json.
+			if many, _ := filepath.Glob(filepath.Join(dir, "@typespec", "openapi3", "openapi.*.json")); len(many) > 0 {
+				for i, m := range many {
+					many[i] = filepath.Base(m)
+				}
+				_ = t.ctx.removeAll(t.Name(), filepath.Join(dir, "@typespec"))
+				return fmt.Errorf("%s declares more than one @service (tsp emitted %s); give each service its own entry in specs", s.Entry, strings.Join(many, ", "))
+			}
 			return fmt.Errorf("tsp compile did not produce %s (check output-dir in tspconfig.yaml)", t.ctx.Cfg.Rel(emitted))
 		}
 		if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {

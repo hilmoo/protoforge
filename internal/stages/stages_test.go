@@ -59,6 +59,191 @@ func TestNormalizeOtherVersion(t *testing.T) {
 	if got := NormalizeService(in, o); got != want {
 		t.Fatalf("got:\n%s", got)
 	}
+	o.Spec, o.ServicesVersion = "pdf_render", "v3"
+	want = "package services.pdf_render.v3;\noption go_package = \"github.com/x/gen/services/pdf_render/v3;pdfrenderv3\";\n\nimport \"models/v2/a.proto\";\n"
+	if got := NormalizeService(in, o); got != want {
+		t.Fatalf("got:\n%s", got)
+	}
+}
+
+// oapiDoc is a minimal OpenAPI document with the shared ApiError model, one
+// spec-specific model and one operation returning it. Titles differ per spec,
+// as with real services, so the generated file headers differ too. extra adds
+// a field to ApiError, so the shared model differs from the other spec's.
+func oapiDoc(model, op string, extra bool) string {
+	errProps := `"code": {"type": "integer", "format": "int32"}, "message": {"type": "string"}`
+	if extra {
+		errProps += `, "detail": {"type": "string"}`
+	}
+	return `{
+  "openapi": "3.0.0",
+  "info": {"title": "` + model + `", "version": "1.0.0"},
+  "paths": {
+    "/` + op + `": {
+      "get": {
+        "operationId": "` + op + `",
+        "tags": ["` + model + `"],
+        "responses": {
+          "200": {"description": "ok", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/` + model + `"}}}},
+          "default": {"description": "error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ApiError"}}}}
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ApiError": {"type": "object", "required": ["code", "message"], "properties": {` + errProps + `}},
+      "` + model + `": {"type": "object", "required": ["id"], "properties": {"id": {"type": "string"}}}
+    }
+  }
+}
+`
+}
+
+// TestProtoMultiSpecWithGenerator runs the real openapi-generator over two
+// specs that share a model: the shared model is written once into models/v1,
+// each spec gets its own services package, --spec keeps the other spec's
+// models and services, and a shared model that differs between specs fails.
+func TestProtoMultiSpecWithGenerator(t *testing.T) {
+	if testing.Short() {
+		t.Skip("integration test")
+	}
+	if _, err := exec.LookPath("openapi-generator-cli"); err != nil {
+		t.Skip("openapi-generator-cli not installed")
+	}
+	root := t.TempDir()
+	cfg, err := config.Parse([]byte("version: 1\nopenapi:\n  dir: api\nproto:\nspecs:\n  core: {entry: ./src/core}\n  pdf: {entry: ./src/pdf}\n"), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	write := func(name, s string) {
+		t.Helper()
+		p := filepath.Join(root, "api", name)
+		os.MkdirAll(filepath.Dir(p), 0o755)
+		if err := os.WriteFile(p, []byte(s), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("core.openapi.json", oapiDoc("CoreThing", "getThing", false))
+	write("pdf.openapi.json", oapiDoc("PdfDoc", "getDoc", false))
+
+	run := func(specs ...string) (string, error) {
+		r := runner.New(root, os.Environ())
+		var out bytes.Buffer
+		r.Stdout, r.Stderr = &out, &out
+		ctx := &Ctx{Cfg: cfg, R: r, NodeRunner: "npx", Specs: specs}
+		s, _ := New(ctx, "proto")
+		err := RunStage(ctx, s, []string{"models", "services"})
+		return out.String(), err
+	}
+	reg := filepath.Join(root, "proto", "registry")
+	read := func(rel string) string {
+		t.Helper()
+		b, err := os.ReadFile(filepath.Join(reg, filepath.FromSlash(rel)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(b)
+	}
+	servicePkg := func(spec string) string {
+		t.Helper()
+		files, _ := filepath.Glob(filepath.Join(reg, "services", spec, "v1", "*.proto"))
+		if len(files) == 0 {
+			t.Fatalf("no services/%s/v1/*.proto", spec)
+		}
+		b, _ := os.ReadFile(files[0])
+		return string(b)
+	}
+
+	if out, err := run(); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	for _, f := range []string{"models/v1/api_error.proto", "models/v1/core_thing.proto", "models/v1/pdf_doc.proto"} {
+		if !strings.Contains(read(f), "package models.v1;") {
+			t.Errorf("%s: not in package models.v1", f)
+		}
+	}
+	for _, spec := range []string{"core", "pdf"} {
+		s := servicePkg(spec)
+		if !strings.Contains(s, "package services."+spec+".v1;") || !strings.Contains(s, `option go_package = "proto/services/`+spec+`/v1;`+spec+`v1";`) {
+			t.Errorf("services/%s: wrong package:\n%s", spec, s)
+		}
+	}
+	if left, _ := filepath.Glob(filepath.Join(reg, "services", "*.proto")); len(left) > 0 {
+		t.Errorf("generator output left behind: %v", left)
+	}
+
+	// --spec pdf: core's services stay, and core's models are still generated.
+	coreSvc := servicePkg("core")
+	if out, err := run("pdf"); err != nil {
+		t.Fatalf("--spec pdf: %v\n%s", err, out)
+	}
+	if servicePkg("core") != coreSvc {
+		t.Error("--spec pdf changed services/core")
+	}
+	read("models/v1/core_thing.proto")
+
+	// The shared ApiError now differs between the two documents.
+	write("pdf.openapi.json", oapiDoc("PdfDoc", "getDoc", true))
+	out, err := run()
+	if err == nil || !strings.Contains(err.Error(), "api_error.proto differs between specs core and pdf") {
+		t.Fatalf("want a shared-model conflict, got %v\n%s", err, out)
+	}
+}
+
+// TestMultiSpecDryRun: with --spec pdf only pdf is compiled, formatted and gets
+// services, but the shared models are still generated from every spec.
+func TestMultiSpecDryRun(t *testing.T) {
+	cfg, err := config.Parse([]byte(`version: 1
+typespec:
+  dir: api
+openapi:
+  dir: api
+  format: true
+proto:
+  flatten_requests: true
+specs:
+  core: {entry: ./src/core}
+  pdf: {entry: ./src/pdf, proto_package: v2}
+`), t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := runner.New(cfg.Root, nil)
+	var out bytes.Buffer
+	r.Stdout, r.Stderr, r.DryRun = &out, &out, true
+	ctx := &Ctx{Cfg: cfg, R: r, NodeRunner: "npx", Specs: []string{"pdf"}}
+	for _, name := range []string{"typespec", "openapi", "proto"} {
+		s, _ := New(ctx, name)
+		if err := RunStage(ctx, s, nil); err != nil {
+			t.Fatalf("%s: %v\n%s", name, err, out.String())
+		}
+	}
+	// Quoting and separators differ per OS.
+	got := strings.NewReplacer("'", "", `\`, "/").Replace(out.String())
+	for _, want := range []string{
+		"compile ./src/pdf",
+		"-o ./pdf.openapi.json ./pdf.openapi.json",
+		"-i ../api/core.openapi.json",
+		"-i ../api/pdf.openapi.json",
+		"proto/registry/services/pdf/v2",
+		"flatten *Request messages in proto/registry/services/pdf/v2",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q", want)
+		}
+	}
+	for _, bad := range []string{"compile ./src/core", "core.openapi.json ./core.openapi.json", "services/core", "remove proto/registry/services\n"} {
+		if strings.Contains(got, bad) {
+			t.Errorf("unexpected %q", bad)
+		}
+	}
+	if t.Failed() {
+		t.Log(got)
+	}
+	if n := strings.Count(got, "-i ../api/core.openapi.json"); n != 1 {
+		t.Errorf("core document used by %d generator runs, want 1 (models only)", n)
+	}
 }
 
 func TestGeneratorMappings(t *testing.T) {

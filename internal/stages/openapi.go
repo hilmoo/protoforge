@@ -29,6 +29,7 @@ func (o *OpenAPI) Steps() []Step {
 	}
 }
 
+// format runs openapi-format on every selected spec's document.
 func (o *OpenAPI) format() error {
 	dir := o.dir()
 	argv, err := o.ctx.tool(runner.ToolSpec{Name: "openapi-format", Bin: "openapi-format", Override: o.ctx.Cfg.Tools.OpenAPIFormat, Node: true}, dir)
@@ -48,17 +49,21 @@ func (o *OpenAPI) format() error {
 		}
 		o.ctx.R.Debugf(o.Name(), "oaf-config.yaml not found; using the built-in default")
 	}
-	out := rel(dir, OpenAPIOutput(o.ctx.Cfg))
-	return o.ctx.run(o.Name(), dir, append(argv, "--configFile", conf, "-o", out, out))
+	return o.ctx.eachSpec(func(s spec) error {
+		out := rel(dir, OpenAPIOutput(o.ctx.Cfg, s.Spec))
+		return o.ctx.run(o.Name(), dir, append(append([]string{}, argv...), "--configFile", conf, "-o", out, out))
+	})
 }
 
 func (o *OpenAPI) goTags() error {
-	out := OpenAPIOutput(o.ctx.Cfg)
-	if !o.ctx.R.FileOp(o.Name(), "inject x-oapi-codegen-extra-tags into %s", o.ctx.Cfg.Rel(out)) {
-		return nil
-	}
 	w := &prefixWriter{r: o.ctx.R, prefix: o.Name()}
-	return gotags.TransformFile(out, out, w)
+	return o.ctx.eachSpec(func(s spec) error {
+		out := OpenAPIOutput(o.ctx.Cfg, s.Spec)
+		if !o.ctx.R.FileOp(o.Name(), "inject x-oapi-codegen-extra-tags into %s", o.ctx.Cfg.Rel(out)) {
+			return nil
+		}
+		return gotags.TransformFile(out, out, w)
+	})
 }
 
 func (o *OpenAPI) lint() error {
@@ -67,11 +72,13 @@ func (o *OpenAPI) lint() error {
 	if err != nil {
 		return err
 	}
-	argv = append(argv, "lint", rel(dir, OpenAPIOutput(o.ctx.Cfg)))
-	if o.c.Lint != "" {
-		argv = append(argv, "--ruleset", o.c.Lint)
-	}
-	return o.ctx.run(o.Name(), dir, argv)
+	return o.ctx.eachSpec(func(s spec) error {
+		a := append(append([]string{}, argv...), "lint", rel(dir, OpenAPIOutput(o.ctx.Cfg, s.Spec)))
+		if o.c.Lint != "" {
+			a = append(a, "--ruleset", o.c.Lint)
+		}
+		return o.ctx.run(o.Name(), dir, a)
+	})
 }
 
 // prefixWriter sends the gotags `[WARN]` lines to stderr with the stage prefix.

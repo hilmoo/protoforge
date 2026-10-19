@@ -205,13 +205,8 @@
           "properties": {
             "dir": {
               "type": "string",
-              "description": "TypeSpec project directory.",
+              "description": "TypeSpec project directory, shared by every spec. Without dir/tspconfig.yaml a built-in config is used.",
               "default": "openapi"
-            },
-            "entry": {
-              "type": "string",
-              "description": "Entry passed to tsp compile (relative to dir). Without dir/tspconfig.yaml a built-in config is used.",
-              "default": "./src"
             },
             "from_drizzle": {
               "type": "object",
@@ -281,13 +276,8 @@
           "properties": {
             "dir": {
               "type": "string",
-              "description": "Directory holding the OpenAPI document.",
+              "description": "Directory holding the OpenAPI documents (specs.<name>.output is relative to it).",
               "default": "openapi"
-            },
-            "output": {
-              "type": "string",
-              "description": "Compiled OpenAPI JSON (relative to dir).",
-              "default": "openapi.json"
             },
             "format": {
               "type": "boolean",
@@ -340,13 +330,13 @@
             },
             "proto_package": {
               "type": "string",
-              "description": "Version segment: package models.<v> / services.<v>, output dirs registry/{models,services}/<v>.",
+              "description": "Version segment of the shared models package (package models.<v>, output dir registry/models/<v>) and the default for specs.<name>.proto_package.",
               "default": "v1",
               "pattern": "^[a-z][a-z0-9_]*$"
             },
             "go_package_root": {
               "type": "string",
-              "description": "option go_package = \"<root>/models/<v>;models<v>\" (and services).",
+              "description": "option go_package = \"<root>/models/<v>;models<v>\" and \"<root>/services/<name>/<v>;<name><v>\".",
               "default": "proto"
             },
             "well_known": {
@@ -382,7 +372,7 @@
               "items": {
                 "$ref": "#/definitions/replaceRule"
               },
-              "description": "Rewrite rules applied to registry/{models,services}/<v> after flattening."
+              "description": "Rewrite rules applied to registry/models/<v> and each registry/services/<name>/<v> after flattening."
             },
             "codegen": {
               "type": "object",
@@ -421,6 +411,35 @@
         }
       ],
       "description": "Proto stage: openapi-generator protobuf-schema passes, normalisation and request flattening. Absent = stage disabled; empty = enabled with defaults."
+    },
+    "specs": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "entry": {
+            "type": "string",
+            "description": "Entry passed to tsp compile (relative to typespec.dir). It must declare exactly one @service."
+          },
+          "output": {
+            "type": "string",
+            "description": "Compiled OpenAPI JSON, relative to openapi.dir (typespec.dir when the openapi stage is absent). Default: <name>.openapi.json."
+          },
+          "proto_package": {
+            "type": "string",
+            "description": "Version segment of this spec's services: package services.<name>.<v>, output dir registry/services/<name>/<v>. Default: proto.proto_package.",
+            "pattern": "^[a-z][a-z0-9_]*$"
+          }
+        },
+        "required": [
+          "entry"
+        ],
+        "additionalProperties": false
+      },
+      "description": "API specs, one per service. Each is compiled from its own TypeSpec entry into its own OpenAPI document and its own services proto package; all specs share typespec.dir, the openapi settings and one proto models package. Absent = one spec named main (entry ./src, output openapi.json).",
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_]*$"
+      }
     },
     "pipelines": {
       "type": "object",

@@ -25,6 +25,10 @@ func TestParseErrors(t *testing.T) {
 		{"pipeline cycle", "version: 1\npipelines:\n  a: [b]\n  b: [a]\n", "pipeline cycle"},
 		{"pipeline named like stage", "version: 1\npipelines:\n  proto: [api]\n", "collides with a built-in stage"},
 		{"empty command", "version: 1\nproto:\n  run_after: ['  ']\n", "empty command"},
+		{"spec without entry", "version: 1\nspecs:\n  core:\n", "specs.core.entry: required"},
+		{"bad spec name", "version: 1\nspecs:\n  Core: {entry: x}\n", "specs.Core: name must match"},
+		{"bad spec package", "version: 1\nspecs:\n  core: {entry: x, proto_package: V2}\n", "specs.core.proto_package"},
+		{"duplicate spec output", "version: 1\nspecs:\n  a: {entry: x, output: o.json}\n  b: {entry: y, output: o.json}\n", "also the output of specs.a"},
 		{"bad namespace", "version: 1\ntypespec:\n  from_drizzle:\n    namespace: '1abc'\n", "invalid TypeSpec namespace"},
 	}
 	for _, tt := range tests {
@@ -48,11 +52,30 @@ func TestDefaults(t *testing.T) {
 	if f := c.TypeSpec.FromDrizzle; f.Namespace != "DbSchema" || f.RequireDocs != "warn" || !reflect.DeepEqual(f.ReadOnlyColumns, []string{"id", "created_at", "updated_at"}) {
 		t.Errorf("from_drizzle defaults: %+v", f)
 	}
-	if c.OpenAPI == nil || c.OpenAPI.Output != "openapi.json" {
+	if c.OpenAPI == nil || c.OpenAPI.Dir != "openapi" {
 		t.Errorf("empty `openapi:` should enable the stage with defaults")
+	}
+	if s := c.Specs[DefaultSpec]; len(c.Specs) != 1 || s == nil || s.Entry != "./src" || s.Output != "openapi.json" || s.ProtoPackage != "v1" {
+		t.Errorf("implicit spec: %+v", c.Specs)
 	}
 	if p := c.Proto; p.ProtoPackage != "v1" || p.AnyType != "google.protobuf.Any" || p.WellKnown["DateTime"] != "google.protobuf.Timestamp" {
 		t.Errorf("proto defaults: %+v", p)
+	}
+}
+
+func TestSpecDefaults(t *testing.T) {
+	c, err := Parse([]byte("version: 1\nproto:\n  proto_package: v3\nspecs:\n  pdf: {entry: ./src/pdf, output: pdf.json, proto_package: v1}\n  core: {entry: ./src/core}\n"), "/repo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := c.SpecNames(); !reflect.DeepEqual(got, []string{"core", "pdf"}) {
+		t.Fatalf("SpecNames: %v", got)
+	}
+	if s := c.Specs["core"]; s.Output != "core.openapi.json" || s.ProtoPackage != "v3" {
+		t.Errorf("core defaults: %+v", s)
+	}
+	if s := c.Specs["pdf"]; s.Output != "pdf.json" || s.ProtoPackage != "v1" {
+		t.Errorf("pdf lost its values: %+v", s)
 	}
 }
 
