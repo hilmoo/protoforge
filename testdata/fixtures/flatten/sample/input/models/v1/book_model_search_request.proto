@@ -52,9 +52,10 @@ message BookModelSearchRequest {
   // Sort order.
   // @gotags: validate:"omitempty,oneof=relevance newest price"
   enum Sort {
-    SORT_RELEVANCE = 0;
-    SORT_NEWEST = 1;
-    SORT_PRICE = 2;
+    SORT_UNSPECIFIED = 0;
+    SORT_RELEVANCE = 1;
+    SORT_NEWEST = 2;
+    SORT_PRICE = 3;
   }
 
   optional string sort = 3536286;
