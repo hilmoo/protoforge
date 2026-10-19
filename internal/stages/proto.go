@@ -174,6 +174,9 @@ func (p *Proto) pass(s spec, kind, templates string, write func(name, content st
 		"-t", templates,
 		"--global-property", gp,
 		"-g", "protobuf-schema",
+		// Reserve 0 for <ENUM>_UNSPECIFIED so a required enum can tell
+		// "unset" apart from its first real value.
+		"--additional-properties", "startEnumsWithUnspecified=true",
 		"-o", rel(dir, reg))
 	if kind == "models" {
 		// Like the original pipeline, only the models pass gets the type/import mappings.
