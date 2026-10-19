@@ -32,6 +32,7 @@ type Config struct {
 	TypeSpec  *TypeSpec           `yaml:"typespec,omitempty" nullable:"true" doc:"TypeSpec stage: embedded Drizzle -> TypeSpec generator and tsp compile. Absent = stage disabled; empty = enabled with defaults."`
 	OpenAPI   *OpenAPI            `yaml:"openapi,omitempty" nullable:"true" doc:"OpenAPI stage: openapi-format and Go struct-tag injection. Absent = stage disabled; empty = enabled with defaults."`
 	Proto     *Proto              `yaml:"proto,omitempty" nullable:"true" doc:"Proto stage: openapi-generator protobuf-schema passes, normalisation and request flattening. Absent = stage disabled; empty = enabled with defaults."`
+	Specs     map[string]*Spec    `yaml:"specs,omitempty" keypattern:"^[a-z][a-z0-9_]*$" doc:"API specs, one per service. Each is compiled from its own TypeSpec entry into its own OpenAPI document and its own services proto package; all specs share typespec.dir, the openapi settings and one proto models package. Absent = one spec named main (entry ./src, output openapi.json)."`
 	Pipelines map[string][]string `yaml:"pipelines,omitempty" doc:"Named sequences of stages, single steps (stage.step, e.g. typespec.from_drizzle) and/or other pipelines. Defaults: api = [typespec, openapi, proto], sql = [migration], all = [sql, api], preview = [migration.docs, typespec, openapi] (no DB writes), proto-gen = api without proto codegen (no DB writes)." stageref:"true"`
 
 	// Root is the directory holding the config file. Every relative path is
@@ -136,10 +137,20 @@ type Sync struct {
 	ExtraReplace []ReplaceRule `yaml:"extra_replace,omitempty" doc:"Extra rewrite rules applied to each written file."`
 }
 
+// DefaultSpec is the name of the implicit spec used when specs is absent.
+const DefaultSpec = "main"
+
+// Spec is one API (one service): a TypeSpec entry, the OpenAPI document compiled
+// from it and its services proto package.
+type Spec struct {
+	Entry        string `yaml:"entry" required:"true" doc:"Entry passed to tsp compile (relative to typespec.dir). It must declare exactly one @service."`
+	Output       string `yaml:"output" doc:"Compiled OpenAPI JSON, relative to openapi.dir (typespec.dir when the openapi stage is absent). Default: <name>.openapi.json."`
+	ProtoPackage string `yaml:"proto_package" doc:"Version segment of this spec's services: package services.<name>.<v>, output dir registry/services/<name>/<v>. Default: proto.proto_package." pattern:"^[a-z][a-z0-9_]*$"`
+}
+
 // TypeSpec configures the typespec stage.
 type TypeSpec struct {
-	Dir         string       `yaml:"dir" doc:"TypeSpec project directory." default:"\"openapi\""`
-	Entry       string       `yaml:"entry" doc:"Entry passed to tsp compile (relative to dir). Without dir/tspconfig.yaml a built-in config is used." default:"\"./src\""`
+	Dir         string       `yaml:"dir" doc:"TypeSpec project directory, shared by every spec. Without dir/tspconfig.yaml a built-in config is used." default:"\"openapi\""`
 	FromDrizzle *FromDrizzle `yaml:"from_drizzle,omitempty" doc:"Generate TypeSpec models/enums from the Drizzle schema with the embedded script. Omit to skip."`
 	RunAfter    []Command    `yaml:"run_after,omitempty" doc:"Escape-hatch commands run in dir after the stage."`
 }
@@ -156,8 +167,7 @@ type FromDrizzle struct {
 
 // OpenAPI configures the openapi stage.
 type OpenAPI struct {
-	Dir      string    `yaml:"dir" doc:"Directory holding the OpenAPI document." default:"\"openapi\""`
-	Output   string    `yaml:"output" doc:"Compiled OpenAPI JSON (relative to dir)." default:"\"openapi.json\""`
+	Dir      string    `yaml:"dir" doc:"Directory holding the OpenAPI documents (specs.<name>.output is relative to it)." default:"\"openapi\""`
 	Format   bool      `yaml:"format" doc:"Run openapi-format with dir/oaf-config.yaml (or a built-in config)." default:"false"`
 	GoTags   bool      `yaml:"go_tags" doc:"Inject x-oapi-codegen-extra-tags (validate / jsonschema Go struct tags)." default:"false"`
 	Lint     string    `yaml:"lint,omitempty" doc:"Spectral ruleset path; used only by stage openapi --only lint."`
@@ -169,13 +179,13 @@ type Proto struct {
 	Dir             string            `yaml:"dir" doc:"Working directory for openapi-generator." default:"\"proto\""`
 	Registry        string            `yaml:"registry" doc:"Generator output root (relative to dir)." default:"\"registry\""`
 	Templates       string            `yaml:"templates,omitempty" doc:"Directory with api.mustache / model.mustache (relative to dir). Default: the embedded templates."`
-	ProtoPackage    string            `yaml:"proto_package" doc:"Version segment: package models.<v> / services.<v>, output dirs registry/{models,services}/<v>." default:"\"v1\"" pattern:"^[a-z][a-z0-9_]*$"`
-	GoPackageRoot   string            `yaml:"go_package_root" doc:"option go_package = \"<root>/models/<v>;models<v>\" (and services)." default:"\"proto\""`
+	ProtoPackage    string            `yaml:"proto_package" doc:"Version segment of the shared models package (package models.<v>, output dir registry/models/<v>) and the default for specs.<name>.proto_package." default:"\"v1\"" pattern:"^[a-z][a-z0-9_]*$"`
+	GoPackageRoot   string            `yaml:"go_package_root" doc:"option go_package = \"<root>/models/<v>;models<v>\" and \"<root>/services/<name>/<v>;<name><v>\"." default:"\"proto\""`
 	WellKnown       map[string]string `yaml:"well_known" doc:"OpenAPI type -> protobuf type, passed as --type-mappings with matching --import-mappings." default:"{\"DateTime\":\"google.protobuf.Timestamp\"}"`
 	AnyType         string            `yaml:"any_type" doc:"Replacement for the generator's AnyType (and its any_type.proto import)." default:"\"google.protobuf.Any\""`
 	DropImports     []string          `yaml:"drop_imports" doc:"Import stems (prefix match) whose import lines are removed, e.g. todo_object_mapping." default:"[]"`
 	FlattenRequests bool              `yaml:"flatten_requests" doc:"Inline model fields into *Request service messages." default:"false"`
-	ExtraReplace    []ReplaceRule     `yaml:"extra_replace,omitempty" doc:"Rewrite rules applied to registry/{models,services}/<v> after flattening."`
+	ExtraReplace    []ReplaceRule     `yaml:"extra_replace,omitempty" doc:"Rewrite rules applied to registry/models/<v> and each registry/services/<name>/<v> after flattening."`
 	Codegen         *Codegen          `yaml:"codegen,omitempty" doc:"Optional minimal codegen step run in dir (e.g. buf generate)."`
 	RunAfter        []Command         `yaml:"run_after,omitempty" doc:"Escape-hatch commands run in dir after the stage."`
 }
@@ -351,7 +361,6 @@ func (c *Config) ApplyDefaults() {
 	}
 	if t := c.TypeSpec; t != nil {
 		def(&t.Dir, "openapi")
-		def(&t.Entry, "./src")
 		if f := t.FromDrizzle; f != nil {
 			def(&f.SchemaDir, "../migration/src/schema")
 			def(&f.Out, "src/_generated/db.tsp")
@@ -364,7 +373,6 @@ func (c *Config) ApplyDefaults() {
 	}
 	if o := c.OpenAPI; o != nil {
 		def(&o.Dir, "openapi")
-		def(&o.Output, "openapi.json")
 	}
 	if p := c.Proto; p != nil {
 		def(&p.Dir, "proto")
@@ -378,6 +386,21 @@ func (c *Config) ApplyDefaults() {
 		if p.Codegen != nil && len(p.Codegen.Commands) == 0 {
 			p.Codegen.Commands = []Command{{Cmd: "buf generate"}}
 		}
+	}
+	if len(c.Specs) == 0 {
+		c.Specs = map[string]*Spec{DefaultSpec: {Entry: "./src", Output: "openapi.json"}}
+	}
+	modelsPkg := "v1"
+	if c.Proto != nil {
+		modelsPkg = c.Proto.ProtoPackage
+	}
+	for name, s := range c.Specs {
+		if s == nil { // `name:` with no value
+			s = &Spec{}
+			c.Specs[name] = s
+		}
+		def(&s.Output, name+".openapi.json")
+		def(&s.ProtoPackage, modelsPkg)
 	}
 	pl := DefaultPipelines()
 	for k, v := range c.Pipelines {
@@ -455,6 +478,23 @@ func (c *Config) Validate() error {
 			validateCommands("proto.codegen.commands", p.Codegen.Commands, add)
 		}
 		validateCommands("proto.run_after", p.RunAfter, add)
+	}
+	outputs := map[string]string{}
+	for _, name := range c.SpecNames() {
+		s := c.Specs[name]
+		if !protoPkgRe.MatchString(name) {
+			add("specs.%s: name must match %s", name, protoPkgRe)
+		}
+		if s.Entry == "" {
+			add("specs.%s.entry: required", name)
+		}
+		if !protoPkgRe.MatchString(s.ProtoPackage) {
+			add("specs.%s.proto_package: must match %s (got %q)", name, protoPkgRe, s.ProtoPackage)
+		}
+		if other, ok := outputs[s.Output]; ok {
+			add("specs.%s.output: %q is also the output of specs.%s", name, s.Output, other)
+		}
+		outputs[s.Output] = name
 	}
 	for name, steps := range c.Pipelines {
 		if IsStage(name) {
@@ -552,6 +592,16 @@ func (c *Config) Expand(names []string) ([]string, error) {
 		}
 	}
 	return out, nil
+}
+
+// SpecNames returns the spec names in sorted order.
+func (c *Config) SpecNames() []string {
+	names := make([]string, 0, len(c.Specs))
+	for n := range c.Specs {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	return names
 }
 
 // StageEnabled reports whether a stage section is configured.

@@ -27,6 +27,7 @@ expansion applied.
 | `env` | — | Map of extra variables. Values support `${VAR}` expansion against the process environment plus `env_file`. These **do** override. |
 | `tools` | auto | See [tools](#tools). |
 | `migration`, `typespec`, `openapi`, `proto` | absent | Stage sections, described below. |
+| `specs` | one spec `main` | One entry per service. See [specs](#specs). |
 | `pipelines` | see below | Named stage sequences. |
 
 ## `tools`
@@ -65,8 +66,7 @@ Steps: `generate` → `docs` → `push` → `post_push_sql` → `migrate` → `s
 
 | key | default | meaning |
 |---|---|---|
-| `dir` | `openapi` | TypeSpec project. |
-| `entry` | `./src` | Passed to `tsp compile`. If `<dir>/tspconfig.yaml` is missing, a built-in one is used (`@typespec/openapi3`, JSON, OpenAPI 3.0.0, `output-dir: {cwd}`). The emitted `@typespec/openapi3/openapi.json` is moved to `openapi.output`, and `@typespec/` is removed. |
+| `dir` | `openapi` | TypeSpec project, shared by every spec. `compile` runs `tsp compile <specs.<name>.entry>` here once per spec. If `<dir>/tspconfig.yaml` is missing, a built-in one is used (`@typespec/openapi3`, JSON, OpenAPI 3.0.0, `output-dir: {cwd}`). The emitted `@typespec/openapi3/openapi.json` is moved to the spec's `output`, and `@typespec/` is removed. An entry that declares more than one `@service` is an error: give each service its own spec. |
 | `from_drizzle` | absent | Runs the embedded Drizzle→TypeSpec generator. Its paths are relative to `typespec.dir`. |
 | `run_after` | — | Escape hatch. |
 
@@ -102,9 +102,8 @@ Steps: `from_drizzle` → `compile` → `run_after`.
 
 | key | default | meaning |
 |---|---|---|
-| `dir` | `openapi` | Directory holding the document. |
-| `output` | `openapi.json` | The compiled document (relative to `dir`). |
-| `format` | `false` | `openapi-format --configFile oaf-config.yaml -o <output> <output>`. Without `<dir>/oaf-config.yaml`, a built-in config is used. |
+| `dir` | `openapi` | Directory holding the documents (each spec's `output` is relative to it). |
+| `format` | `false` | `openapi-format --configFile oaf-config.yaml -o <output> <output>` for each spec. Without `<dir>/oaf-config.yaml`, a built-in config is used. |
 | `go_tags` | `false` | Injects `x-oapi-codegen-extra-tags` (`validate` and `jsonschema` tags) in Go, byte-identical to the former `transform_openapi.py`. |
 | `lint` | — | Spectral ruleset path, used only by `--only lint`. |
 | `run_after` | — | Escape hatch. |
@@ -118,23 +117,69 @@ Steps: `format` → `go_tags` → `lint` (only with `--only`) → `run_after`.
 | `dir` | `proto` | Working dir for `openapi-generator-cli`. |
 | `registry` | `registry` | Generator output root (relative to `dir`). |
 | `templates` | embedded | Directory with `api.mustache` / `model.mustache`. By default the embedded templates are used, with `models.v1.` rewritten for `proto_package`. |
-| `proto_package` | `v1` | Gives `package models.<v>;` / `services.<v>;` and the output dirs `registry/{models,services}/<v>`. |
-| `go_package_root` | `proto` | Gives `option go_package = "<root>/models/<v>;models<v>";` (same for services). |
+| `proto_package` | `v1` | Version of the shared models package: `package models.<v>;` in `registry/models/<v>`. Also the default for `specs.<name>.proto_package`. |
+| `go_package_root` | `proto` | Gives `option go_package = "<root>/models/<v>;models<v>";` and, for services, `"<root>/services/<name>/<v>;<name><v>"`. |
 | `well_known` | `{DateTime: google.protobuf.Timestamp}` | Passed as `--type-mappings` plus matching `--import-mappings` (models pass only, as before). |
 | `any_type` | `google.protobuf.Any` | Replaces `AnyType` and its `any_type.proto` import. |
 | `drop_imports` | `[]` | Import stems (prefix match) whose `import` lines are deleted, e.g. `todo_object_mapping`, `common_error_error`. |
 | `flatten_requests` | `false` | Inlines model fields into `*Request` messages. A Go port of `flatten_services.py`. |
-| `extra_replace` | — | Rules applied to `registry/{models,services}/<v>` after flattening. |
+| `extra_replace` | — | Rules applied to `registry/models/<v>` and each `registry/services/<name>/<v>` after flattening. |
 | `codegen` | absent | `{enabled: false, commands: ["buf generate"]}`, run in `dir`. |
 | `run_after` | — | Escape hatch. |
 
 Steps: `models` → `services` → `flatten` → `extra_replace` → `cleanup` (removes
 `<dir>/.tmp`) → `codegen` → `run_after`.
 
-Each pass deletes `registry/<kind>/<v>` first, then runs
-`openapi-generator-cli generate -g protobuf-schema --global-property models|apis`. It
-then moves the `*.proto` files into `registry/<kind>/<v>/` and applies the built-in
-normalisations that replace the old `sed -i` chain.
+Each generator run is
+`openapi-generator-cli generate -g protobuf-schema --global-property models|apis` on
+one spec's document. The `*.proto` files it writes get the built-in normalisations
+that replace the old `sed -i` chain, then:
+
+- `models` deletes `registry/models/<v>` and runs once for **every** spec, even with
+  `--spec`, so building one service never drops another's models. Every file lands in
+  the shared `registry/models/<v>`. A model emitted by several specs (say
+  `common_error_error.proto`) is written once, and the step fails if the specs produce
+  different content for it. The generator's header comment (document title and
+  version) is ignored in that check; the file keeps the header of the first spec by name.
+- `services` runs for each selected spec into `registry/services/<name>/<v>`
+  (`package services.<name>.<v>;`). A full run deletes `registry/services` first, so
+  a removed spec leaves nothing behind; with `--spec` only that spec's directory is
+  replaced.
+
+## `specs`
+
+One entry per service (API). The map key is the spec name (`^[a-z][a-z0-9_]*$`); it
+appears in the proto package and paths.
+
+| key | default | meaning |
+|---|---|---|
+| `entry` | required | Passed to `tsp compile`, relative to `typespec.dir`. It must declare exactly one `@service`. |
+| `output` | `<name>.openapi.json` | Compiled OpenAPI JSON, relative to `openapi.dir` (to `typespec.dir` when there is no `openapi` section). Must differ between specs. |
+| `proto_package` | `proto.proto_package` | Version segment of this spec's services: `package services.<name>.<v>;` in `registry/services/<name>/<v>`. The models package version stays `proto.proto_package`. |
+
+Without `specs`, there is a single spec `main` with `entry: ./src` and
+`output: openapi.json`.
+
+```yaml
+typespec:
+  dir: api                         # one TypeSpec project; shared models live in it
+  from_drizzle: {}                 # runs once
+specs:
+  core:   { entry: ./src/core/main.tsp }                       # api/core.openapi.json
+  pdf:    { entry: ./src/pdf/main.tsp, proto_package: v2 }     # services.pdf.v2
+```
+
+The `openapi` and `proto` settings (`format`, `go_tags`, `flatten_requests`,
+`extra_replace`, ...) apply to every spec alike. `go_tags` is deliberately not per spec:
+it changes the generated models, and the models are shared.
+
+Limit `typespec.compile`, the `openapi` steps and the per-spec `proto` steps to some
+specs with `--spec`:
+
+```
+protoforge run api --spec pdf
+protoforge run api --spec core,pdf
+```
 
 ## `pipelines`
 
@@ -203,7 +248,8 @@ protoforge doctor
 protoforge config print
 protoforge version
 
-global: -c/--config, --dry-run, --verbose, --no-color, --continue-on-error
+global: -c/--config, --dry-run, --verbose, --no-color, --continue-on-error,
+        --spec name[,name]                     # limit per-spec work (see specs)
 ```
 
 `--dry-run` prints every command (with its working dir) and every native file

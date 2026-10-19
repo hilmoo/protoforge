@@ -37,7 +37,6 @@ migration:
     - echo migration done
 typespec:
   dir: api
-  entry: ./spec
   from_drizzle:
     schema_dir: ../db/src/schema
     out: spec/_generated/db.tsp
@@ -48,7 +47,6 @@ typespec:
     - { cmd: "tsp format spec/**/*.tsp", shell: true }
 openapi:
   dir: api
-  output: openapi.json
   format: true
   go_tags: true
   lint: .spectral.yaml
@@ -74,3 +72,10 @@ pipelines:
   api: [typespec, openapi, proto]
   db: [migration]
   everything: [db, api]
+specs:
+  core:
+    entry: ./spec/core
+    output: core.openapi.json
+  pdf:
+    entry: ./spec/pdf
+    proto_package: v1

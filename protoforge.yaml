@@ -115,9 +115,9 @@ migration:
 # Steps: from_drizzle -> compile -> run_after
 # ---------------------------------------------------------------------------
 typespec:
-  dir: openapi                     # TypeSpec project directory (default: openapi)
-  entry: ./src                     # passed to tsp compile, relative to dir (default: ./src).
+  dir: openapi                     # TypeSpec project shared by every spec (default: openapi).
                                    # Without <dir>/tspconfig.yaml a built-in config is used.
+                                   # Entries are per spec: see `specs` below.
 
   # Generate TypeSpec models/enums from the Drizzle schema with the embedded
   # script. Paths are relative to typespec.dir. Omit to skip.
@@ -136,9 +136,8 @@ typespec:
 # Steps: format -> go_tags -> lint (only with --only) -> run_after
 # ---------------------------------------------------------------------------
 openapi:
-  dir: openapi                     # directory holding the document (default: openapi)
-  output: openapi.json             # compiled OpenAPI JSON, relative to dir (default: openapi.json)
-  format: true                     # openapi-format with dir/oaf-config.yaml or built-in (default: false)
+  dir: openapi                     # directory holding the documents (default: openapi)
+  format: true                    # openapi-format with dir/oaf-config.yaml or built-in (default: false)
   go_tags: true                    # inject x-oapi-codegen-extra-tags validate/jsonschema (default: false)
   lint: .spectral.yaml             # Spectral ruleset; used only by `stage openapi --only lint`
   run_after:
@@ -153,9 +152,11 @@ proto:
   registry: registry               # generator output root, relative to dir (default: registry)
   templates: templates             # dir with api.mustache / model.mustache, relative to dir.
                                    # Default: the embedded templates.
-  proto_package: v1                # version segment: package models.<v> / services.<v>;
+  proto_package: v1                # version of the shared models package (models.<v>) and the
+                                   # default for specs.<name>.proto_package;
                                    # ^[a-z][a-z0-9_]*$ (default: v1)
-  go_package_root: proto           # option go_package = "<root>/models/<v>;models<v>" (default: proto)
+  go_package_root: proto           # option go_package = "<root>/models/<v>;models<v>" and
+                                   # "<root>/services/<name>/<v>;<name><v>" (default: proto)
 
   # OpenAPI type -> protobuf type (--type-mappings + --import-mappings, models pass).
   # default: {DateTime: google.protobuf.Timestamp}
@@ -170,7 +171,8 @@ proto:
 
   flatten_requests: true           # inline model fields into *Request messages (default: false)
 
-  # Rewrite rules applied to registry/{models,services}/<v> after flattening.
+  # Rewrite rules applied to registry/models/<v> and each registry/services/<name>/<v>
+  # after flattening.
   # Exactly one of from / regex / delete_line_matching per rule.
   extra_replace:
     - { glob: "*.proto", from: "optional string", to: "string" }
@@ -186,6 +188,25 @@ proto:
 
   run_after:
     - buf lint
+
+# ---------------------------------------------------------------------------
+# Specs: one entry per service (API). Each spec compiles its own TypeSpec entry
+# into its own OpenAPI document and gets its own services package
+# (registry/services/<name>/<v>, package services.<name>.<v>). All specs share
+# typespec.dir, the openapi/proto settings and ONE models package: models
+# are generated from every spec's document (even with --spec), and a model
+# that several specs emit must come out identical.
+#
+# Absent = one spec named `main` with entry ./src and output openapi.json.
+# Names: ^[a-z][a-z0-9_]*$. Limit a run to some specs with --spec core,pdf.
+# ---------------------------------------------------------------------------
+specs:
+  core:
+    entry: ./src/core/main.tsp     # required; relative to typespec.dir, exactly one @service
+    output: core.openapi.json      # relative to openapi.dir (default: <name>.openapi.json)
+  pdf:
+    entry: ./src/pdf/main.tsp
+    proto_package: v2              # services.pdf.v2 (default: proto.proto_package)
 
 # ---------------------------------------------------------------------------
 # Pipelines: named sequences of stages and/or other pipelines.

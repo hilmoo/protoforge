@@ -35,7 +35,9 @@ var WellKnown = map[string]string{
 // Options configures a run.
 type Options struct {
 	Registry string // registry root (contains models/<ver> and services/<ver>)
-	Version  string // proto package version, e.g. "v1"
+	Version  string // models proto package version, e.g. "v1"
+	// Services is the services directory to flatten; default <Registry>/services/<Version>.
+	Services string
 	// WellKnown overrides the default WKT import table when non-nil.
 	WellKnown map[string]string
 }
@@ -78,7 +80,10 @@ func Run(o Options) error {
 		st.wkt = WellKnown
 	}
 	modelsDir := filepath.Join(o.Registry, "models", o.Version)
-	servicesDir := filepath.Join(o.Registry, "services", o.Version)
+	servicesDir := o.Services
+	if servicesDir == "" {
+		servicesDir = filepath.Join(o.Registry, "services", o.Version)
+	}
 
 	models, err := globSorted(modelsDir)
 	if err != nil {

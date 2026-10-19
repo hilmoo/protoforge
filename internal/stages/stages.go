@@ -20,6 +20,47 @@ type Ctx struct {
 	NodeRunner string // resolved tools.node_runner
 	// ContinueOnError keeps running later steps after a failure.
 	ContinueOnError bool
+	// Specs limits the per-spec work to these specs (--spec); empty means every spec.
+	Specs []string
+}
+
+// spec is one named entry of config.Specs.
+type spec struct {
+	Name string
+	*config.Spec
+}
+
+// allSpecs returns every configured spec in name order.
+func (c *Ctx) allSpecs() []spec {
+	var out []spec
+	for _, n := range c.Cfg.SpecNames() {
+		out = append(out, spec{n, c.Cfg.Specs[n]})
+	}
+	return out
+}
+
+// specs returns the specs selected with --spec (all of them by default), in name order.
+func (c *Ctx) specs() []spec {
+	if len(c.Specs) == 0 {
+		return c.allSpecs()
+	}
+	var out []spec
+	for _, s := range c.allSpecs() {
+		if contains(c.Specs, s.Name) {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// eachSpec runs fn for every selected spec, prefixing errors with the spec name.
+func (c *Ctx) eachSpec(fn func(s spec) error) error {
+	for _, s := range c.specs() {
+		if err := fn(s); err != nil {
+			return fmt.Errorf("spec %s: %w", s.Name, err)
+		}
+	}
+	return nil
 }
 
 // Step is one named sub-step of a stage.

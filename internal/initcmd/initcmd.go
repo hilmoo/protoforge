@@ -109,8 +109,7 @@ migration:
 
 typespec:
   dir: %s
-  entry: %s
-  from_drizzle:                    # generate TypeSpec models from the Drizzle schema
+  from_drizzle:                   # generate TypeSpec models from the Drizzle schema
     schema_dir: %s
     out: src/_generated/db.tsp
     namespace: DbSchema
@@ -119,8 +118,7 @@ typespec:
 
 openapi:
   dir: %s
-  output: %s
-  format: true                     # openapi-format (oaf-config.yaml, or the built-in default)
+  format: true                    # openapi-format (oaf-config.yaml, or the built-in default)
   go_tags: false                   # inject x-oapi-codegen-extra-tags (validate/jsonschema)
 
 proto:
@@ -134,9 +132,16 @@ proto:
   #   enabled: false
   #   commands: [ "buf generate" ]
 
+# One entry per service. Each compiles its own TypeSpec entry into its own
+# OpenAPI document and registry/services/<name>/<v>; all share the models package.
+specs:
+  main:
+    entry: %s                      # relative to typespec.dir
+    output: %s                     # relative to openapi.dir
+
 # pipelines:                       # defaults: api = typespec openapi proto, sql = migration, all = sql api
 #   api: [ typespec, openapi, proto ]
-`, config.SchemaID, d.migration, d.drizzleConfig, d.typespec, d.entry, schemaFromTS, d.openapi, d.output, d.proto)
+`, config.SchemaID, d.migration, d.drizzleConfig, d.typespec, schemaFromTS, d.openapi, d.proto, d.entry, d.output)
 }
 
 func relTo(base, p string) string {
