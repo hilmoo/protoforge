@@ -50,7 +50,7 @@ message {{classname}} {
   // @gotags: {{#validate}}validate:"{{{validate}}}"{{/validate}}
   {{/vendorExtensions.x-oapi-codegen-extra-tags}}
   {{^isEnum}}
-  {{^required}}{{^isArray}}{{^isMap}}optional {{/isMap}}{{/isArray}}{{/required}}{{#vendorExtensions.x-protobuf-type}}{{{.}}} {{/vendorExtensions.x-protobuf-type}}{{{vendorExtensions.x-protobuf-data-type}}} {{{name}}} = {{vendorExtensions.x-protobuf-index}}{{#vendorExtensions.x-protobuf-packed}} [packed=true]{{/vendorExtensions.x-protobuf-packed}}{{#vendorExtensions.x-protobuf-json-name}} [json_name="{{vendorExtensions.x-protobuf-json-name}}"]{{/vendorExtensions.x-protobuf-json-name}};
+  {{^required}}{{^isArray}}{{^isMap}}optional {{/isMap}}{{/isArray}}{{/required}}{{#required}}{{#vendorExtensions.x-protoforge-presence}}optional {{/vendorExtensions.x-protoforge-presence}}{{/required}}{{#vendorExtensions.x-protobuf-type}}{{{.}}} {{/vendorExtensions.x-protobuf-type}}{{{vendorExtensions.x-protobuf-data-type}}} {{{name}}} = {{vendorExtensions.x-protobuf-index}}{{#vendorExtensions.x-protobuf-packed}} [packed=true]{{/vendorExtensions.x-protobuf-packed}}{{#vendorExtensions.x-protobuf-json-name}} [json_name="{{vendorExtensions.x-protobuf-json-name}}"]{{/vendorExtensions.x-protobuf-json-name}};
   {{/isEnum}}
   {{#isEnum}}
   {{^vendorExtensions.x-protobuf-enum-reference-import}}
@@ -63,7 +63,7 @@ message {{classname}} {
   }
 
   {{/vendorExtensions.x-protobuf-enum-reference-import}}
-  {{^required}}{{^isArray}}{{^isMap}}optional {{/isMap}}{{/isArray}}{{/required}}{{#vendorExtensions.x-protobuf-type}}{{{.}}} {{/vendorExtensions.x-protobuf-type}}{{{vendorExtensions.x-protobuf-data-type}}} {{name}} = {{vendorExtensions.x-protobuf-index}};
+  {{^required}}{{^isArray}}{{^isMap}}optional {{/isMap}}{{/isArray}}{{/required}}{{#required}}{{#vendorExtensions.x-protoforge-presence}}optional {{/vendorExtensions.x-protoforge-presence}}{{/required}}{{#vendorExtensions.x-protobuf-type}}{{{.}}} {{/vendorExtensions.x-protobuf-type}}{{{vendorExtensions.x-protobuf-data-type}}} {{name}} = {{vendorExtensions.x-protobuf-index}};
   {{/isEnum}}
 
   {{/vars}}

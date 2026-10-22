@@ -266,7 +266,8 @@
             ],
             "x-oapi-codegen-extra-tags": {
               "validate": "required,gte=1,oneof=1 2 3"
-            }
+            },
+            "x-protoforge-presence": true
           },
           "obj_ref": {
             "$ref": "#/components/schemas/Obj"
@@ -435,7 +436,8 @@
                 "type": "integer",
                 "x-oapi-codegen-extra-tags": {
                   "validate": "required"
-                }
+                },
+                "x-protoforge-presence": true
               },
               "other": {
                 "type": "boolean",

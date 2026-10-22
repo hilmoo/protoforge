@@ -19,6 +19,10 @@ import (
 
 const extraTagsKey = "x-oapi-codegen-extra-tags"
 
+// presenceKey marks a required numeric property that must be generated as proto3
+// `optional` (a Go pointer), so `validate:"required"` rejects a missing value but accepts 0.
+const presenceKey = "x-protoforge-presence"
+
 // formatParamMap mirrors FORMAT_PARAM_MAP ("date-time" is deliberately absent).
 var formatParamMap = map[string]string{
 	"date": "datetime=2006-01-02",
@@ -584,7 +588,18 @@ func (t *Transformer) injectIntoProperties(properties *Object, required map[stri
 		if !extra.empty() {
 			mergeTags(prop, extra)
 		}
+		if required[fieldName] && isNumeric(prop, schemas) {
+			prop.Set(presenceKey, true)
+		}
 	}
+}
+
+// isNumeric reports whether the property is an integer/number, directly or through a $ref wrapper.
+func isNumeric(prop, schemas *Object) bool {
+	if isInlineProperty(prop) {
+		return inList(getStr(prop, "type"), []string{"integer", "number"})
+	}
+	return inList(getStr(resolveRefWrapper(prop, schemas), "type"), []string{"integer", "number"})
 }
 
 // ---------------------------------------------------------------------------

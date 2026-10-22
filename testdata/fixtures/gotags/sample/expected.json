@@ -740,7 +740,8 @@
             "example": 12.5,
             "x-oapi-codegen-extra-tags": {
               "validate": "required"
-            }
+            },
+            "x-protoforge-presence": true
           },
           "metadata": {
             "description": "Arbitrary publisher metadata.",
@@ -873,7 +874,8 @@
             "example": 12.5,
             "x-oapi-codegen-extra-tags": {
               "validate": "required"
-            }
+            },
+            "x-protoforge-presence": true
           },
           "metadata": {
             "description": "Arbitrary publisher metadata.",
@@ -950,7 +952,8 @@
             "example": 5,
             "x-oapi-codegen-extra-tags": {
               "validate": "required"
-            }
+            },
+            "x-protoforge-presence": true
           },
           "body": {
             "type": "string",
@@ -978,7 +981,8 @@
             "minimum": 1,
             "x-oapi-codegen-extra-tags": {
               "validate": "required,gte=1,lte=5,int32"
-            }
+            },
+            "x-protoforge-presence": true
           },
           "body": {
             "description": "Review text.",
@@ -1121,7 +1125,8 @@
             "minimum": 0,
             "x-oapi-codegen-extra-tags": {
               "validate": "required,gte=0,int64"
-            }
+            },
+            "x-protoforge-presence": true
           }
         },
         "required": [
@@ -1147,7 +1152,8 @@
             "example": 404,
             "x-oapi-codegen-extra-tags": {
               "validate": "required"
-            }
+            },
+            "x-protoforge-presence": true
           },
           "details": {
             "description": "Extra details, keyed by field.",
