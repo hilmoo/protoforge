@@ -35,7 +35,7 @@ message BookModelReview {
 
   // Rating from 1 to 5.
   // @gotags: validate:"required"
-  int32 rating = 401231460;
+  optional int32 rating = 401231460;
 
   // @gotags: validate:"omitempty"
   optional string body = 3029410;

@@ -23,7 +23,7 @@ message BookModelSearchResponse {
 
   // Total number of matches.
   // @gotags: validate:"required,gte=0,int64"
-  int64 total = 110549828;
+  optional int64 total = 110549828;
 
 }
 

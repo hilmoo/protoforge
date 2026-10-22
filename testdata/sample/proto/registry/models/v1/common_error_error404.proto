@@ -22,7 +22,7 @@ message CommonErrorError404 {
 
   // Machine-readable error code.
   // @gotags: validate:"required"
-  int32 code = 3059181;
+  optional int32 code = 3059181;
 
   // Extra details, keyed by field.
   // @gotags: validate:"omitempty"

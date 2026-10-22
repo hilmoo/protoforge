@@ -53,7 +53,7 @@ message BookModelCreateRequest {
 
   // List price in USD.
   // @gotags: validate:"required"
-  float price = 106934601;
+  optional float price = 106934601;
 
   // Arbitrary publisher metadata.
   // @gotags: validate:"omitempty"

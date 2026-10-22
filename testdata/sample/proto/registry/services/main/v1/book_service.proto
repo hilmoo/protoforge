@@ -40,7 +40,7 @@ message BooksBulkReviewRequest {
   message BookModelReviewInput {
     // Rating from 1 to 5.
     // @gotags: validate:"required,gte=1,lte=5,int32"
-    int32 rating = 401231460;
+    optional int32 rating = 401231460;
 
     // Review text.
     // @gotags: validate:"omitempty,max=5000"
@@ -108,7 +108,7 @@ message BooksCreateRequest {
 
   // List price in USD.
   // @gotags: validate:"required"
-  float price = 106934601;
+  optional float price = 106934601;
 
   // Arbitrary publisher metadata.
   // @gotags: validate:"omitempty"
