@@ -1,16 +1,45 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:recommended"
+    "config:recommended",
+    "group:allNonMajor",
+    ":maintainLockFilesWeekly"
   ],
-  "automerge": true,
+  "automerge": false,
+  "minimumReleaseAge": "3 days",
+  "internalChecksFilter": "strict",
+  "prConcurrentLimit": 5,
+  "vulnerabilityAlerts": {
+    "labels": ["security"]
+  },
   "packageRules": [
     {
+      "description": "Automerge low-risk updates once CI passes",
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+      "automerge": true
+    },
+    {
+      "description": "0.x versions treat minor bumps as breaking, so don't automerge them",
+      "matchCurrentVersion": "/^0\\./",
+      "matchUpdateTypes": ["minor"],
+      "automerge": false
+    },
+    {
+      "description": "Majors get their own PRs, labeled, never automerged",
+      "matchUpdateTypes": ["major"],
+      "automerge": false,
+      "labels": ["dependencies", "major-update"]
+    },
+    {
       "description": "Group all TypeSpec packages so peer dependencies stay in sync",
-      "matchPackageNames": [
-        "@typespec/**"
-      ],
+      "matchPackageNames": ["@typespec/**"],
       "groupName": "typespec"
+    },
+    {
+      "description": "TypeSpec minor/major bumps often change emitter output, so review manually",
+      "matchPackageNames": ["@typespec/**"],
+      "matchUpdateTypes": ["minor", "major"],
+      "automerge": false
     }
   ]
 }
