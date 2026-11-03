@@ -80,7 +80,7 @@
       "EmptyThings": {"type": "object", "properties": {}, "x-list": [], "x-obj": {}},
       "Weird": {"type": "string", "enum": [true, false, 1.0, 2, "s"], "x-mcp": true, "example": [1, "two"]},
       "Dup": {"type": "string", "description": "first", "description": "second"},
-      "Escapes": {"type": "string", "description": "tab\tquote\"back\\slash\u0001ctlsep", "x-n": [1.0, 1e-7, 1e16, 123456789012345678901234567890, -0, 3.14159, 1E5, 0.0001]}
+      "Escapes": {"type": "string", "description": "tab\tquote\"back\\slash\u0001ctl sep", "x-n": [1.0, 1e-7, 1e16, 123456789012345678901234567890, -0, 3.14159, 1E5, 0.0001]}
     },
     "parameters": {"Skip": {"name": "skip", "in": "query", "schema": {"type": "string"}}}
   }
