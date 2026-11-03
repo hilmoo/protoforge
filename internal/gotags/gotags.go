@@ -1,5 +1,5 @@
 // Package gotags is the port of transform_openapi (the former gist). It injects
-// `x-oapi-codegen-extra-tags` (validate / jsonschema struct tags) into OpenAPI 3.0
+// `x-protoforge-extra-tags` (validate / jsonschema struct tags) into OpenAPI 3.0
 // schema properties and operation parameters.
 //
 // Every function mirrors the original function of the same name; the output is
@@ -17,7 +17,7 @@ import (
 	"unicode"
 )
 
-const extraTagsKey = "x-oapi-codegen-extra-tags"
+const extraTagsKey = "x-protoforge-extra-tags"
 
 // presenceKey marks a required numeric property that must be generated as proto3
 // `optional` (a Go pointer), so `validate:"required"` rejects a missing value but accepts 0.

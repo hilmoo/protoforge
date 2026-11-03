@@ -18,7 +18,7 @@ Drizzle schema ─► migrations (+ DBML docs) ─► TypeSpec ─► OpenAPI JS
 |---|---|---|
 | `migration` | `drizzle-kit generate/push/migrate`, DBML/markdown docs, transactional `post_push_sql`, and `sync` of migration SQL into another tree | `drizzle-kit`, `drizzle-docs`, Postgres (`pgx`) |
 | `typespec` | Generates TypeSpec models/enums from your Drizzle schema (embedded script), then compiles | `tsp`, `tsx`/`bun`/`node` |
-| `openapi` | Formats the document and injects Go struct tags (`validate`, `jsonschema`) via `x-oapi-codegen-extra-tags` | `openapi-format`, `spectral` (optional lint) |
+| `openapi` | Formats the document and injects Go struct tags (`validate`, `jsonschema`) via `x-protoforge-extra-tags` | `openapi-format`, `spectral` (optional lint) |
 | `proto` | Runs the `protobuf-schema` generator for models and services, normalises output, flattens `*Request` messages, applies custom rewrites, optional `buf generate` | `openapi-generator-cli`, `buf` (optional) |
 
 Pipelines group stages. Built in: `api` = typespec → openapi → proto, `sql` =

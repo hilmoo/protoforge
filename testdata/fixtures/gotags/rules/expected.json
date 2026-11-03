@@ -11,7 +11,7 @@
             "type": "string",
             "format": "uuid"
           },
-          "x-oapi-codegen-extra-tags": {
+          "x-protoforge-extra-tags": {
             "validate": "required,uuid"
           }
         },
@@ -42,7 +42,7 @@
               "exclusiveMaximum": true,
               "format": "int32"
             },
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty,gte=1,lt=100,int32"
             }
           },
@@ -58,7 +58,7 @@
               "description": "A day\nwith newline",
               "example": "2024-01-01"
             },
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required,datetime=2006-01-02",
               "jsonschema": "A day with newline. Example: 2024-01-01"
             }
@@ -70,7 +70,7 @@
               "type": "string",
               "format": "time"
             },
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty,datetime=15:04:05"
             }
           },
@@ -81,7 +81,7 @@
               "type": "string",
               "format": "date-time"
             },
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty"
             }
           },
@@ -108,7 +108,7 @@
                 "minLength": 2
               }
             },
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty,min=1,max=5,unique,dive,min=2,oneof=a b"
             }
           }
@@ -130,7 +130,7 @@
               "exclusiveMinimum": true,
               "maximum": 1e+20
             },
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty,gt=0.5,lte=1e+20"
             }
           },
@@ -142,7 +142,7 @@
               "minimum": 1e+20,
               "maximum": 1.5
             },
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty,gte=100000000000000000000,lte=1.5"
             }
           }
@@ -159,7 +159,7 @@
           "green"
         ],
         "description": "A colour",
-        "x-oapi-codegen-extra-tags": {
+        "x-protoforge-extra-tags": {
           "validate": "omitempty"
         }
       },
@@ -171,7 +171,7 @@
           3
         ],
         "minimum": 1,
-        "x-oapi-codegen-extra-tags": {
+        "x-protoforge-extra-tags": {
           "validate": "omitempty,gte=1,oneof=1 2 3"
         }
       },
@@ -180,7 +180,7 @@
         "properties": {
           "a": {
             "type": "string",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty"
             }
           }
@@ -192,7 +192,7 @@
           "type": "integer",
           "maximum": 9
         },
-        "x-oapi-codegen-extra-tags": {
+        "x-protoforge-extra-tags": {
           "validate": "omitempty,dive,lte=9"
         }
       },
@@ -218,7 +218,7 @@
             "pattern": "^[a-z]+$",
             "description": "  The name  ",
             "example": "bob",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required,min=1,max=64",
               "jsonschema": "The name. Example: bob"
             }
@@ -226,7 +226,7 @@
           "active": {
             "type": "boolean",
             "description": "Is active.",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "jsonschema": "Is active."
             }
           },
@@ -234,14 +234,14 @@
             "type": "boolean",
             "nullable": true,
             "example": true,
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required",
               "jsonschema": "Example: true"
             }
           },
           "opt_bool": {
             "type": "boolean",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty"
             }
           },
@@ -253,7 +253,7 @@
             ],
             "description": "Wrapper wins",
             "example": "red",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required",
               "jsonschema": "Wrapper wins. Example: red"
             }
@@ -264,7 +264,7 @@
                 "$ref": "#/components/schemas/Level"
               }
             ],
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required,gte=1,oneof=1 2 3"
             },
             "x-protoforge-presence": true
@@ -306,7 +306,7 @@
               }
             ],
             "type": "string",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty"
             }
           },
@@ -316,7 +316,7 @@
               "x",
               "y"
             ],
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty,oneof=x y"
             }
           },
@@ -326,7 +326,7 @@
               0,
               5
             ],
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty,oneof=0 5"
             }
           },
@@ -340,7 +340,7 @@
                 "minimum": -1.25
               }
             },
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required,dive,min=2,dive,gte=-1.25"
             }
           },
@@ -349,7 +349,7 @@
             "items": {
               "$ref": "#/components/schemas/Obj"
             },
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty"
             }
           },
@@ -357,14 +357,14 @@
             "type": "object",
             "minProperties": 1,
             "maxProperties": 10,
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty,min=1,max=10"
             }
           },
           "custom": {
             "type": "string",
             "x-validator": "  email  ",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty,email"
             }
           },
@@ -379,7 +379,7 @@
               ],
               "u": "héllo\n"
             },
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty",
               "jsonschema": "Example: {'k': 'v'q', 'n': [1, 2.0, null], 'u': 'héllo\\n'}"
             }
@@ -387,7 +387,7 @@
           "only_ex": {
             "type": "integer",
             "example": 42,
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty",
               "jsonschema": "Example: 42"
             }
@@ -396,7 +396,7 @@
             "type": "string",
             "description": "Ends with dot.",
             "example": "it's",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty",
               "jsonschema": "Ends with dot. Example: it's"
             }
@@ -405,7 +405,7 @@
             "type": "string",
             "description": "Ünïcødé — ok ✓",
             "x-mcp": false,
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty",
               "jsonschema": "Ünïcødé — ok ✓"
             }
@@ -428,13 +428,13 @@
             "properties": {
               "base": {
                 "type": "string",
-                "x-oapi-codegen-extra-tags": {
+                "x-protoforge-extra-tags": {
                   "validate": "required"
                 }
               },
               "extra": {
                 "type": "integer",
-                "x-oapi-codegen-extra-tags": {
+                "x-protoforge-extra-tags": {
                   "validate": "required"
                 },
                 "x-protoforge-presence": true
@@ -443,7 +443,7 @@
                 "type": "boolean",
                 "x-mcp": true,
                 "description": "d",
-                "x-oapi-codegen-extra-tags": {
+                "x-protoforge-extra-tags": {
                   "validate": "omitempty",
                   "jsonschema": "d"
                 }
@@ -461,7 +461,7 @@
           "a": {
             "type": "string",
             "maxLength": 3,
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "json": "a",
               "validate": "required,alpha,max=3"
             }
@@ -470,7 +470,7 @@
             "type": "string",
             "x-mcp": true,
             "description": "b",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "jsonschema": "b",
               "validate": "omitempty"
             }
@@ -497,7 +497,7 @@
           1,
           "two"
         ],
-        "x-oapi-codegen-extra-tags": {
+        "x-protoforge-extra-tags": {
           "validate": "omitempty",
           "jsonschema": "Example: [1, 'two']"
         }
@@ -505,7 +505,7 @@
       "Dup": {
         "type": "string",
         "description": "second",
-        "x-oapi-codegen-extra-tags": {
+        "x-protoforge-extra-tags": {
           "validate": "omitempty"
         }
       },
@@ -522,7 +522,7 @@
           100000.0,
           0.0001
         ],
-        "x-oapi-codegen-extra-tags": {
+        "x-protoforge-extra-tags": {
           "validate": "omitempty"
         }
       }

@@ -175,7 +175,7 @@
             "schema": {
               "type": "string"
             },
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required"
             }
           },
@@ -191,7 +191,7 @@
               "minimum": 16
             },
             "explode": false,
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty,gte=16,lte=2048,int32"
             }
           },
@@ -208,7 +208,7 @@
               ]
             },
             "explode": false,
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty,oneof=png jpeg"
             }
           }
@@ -518,7 +518,7 @@
             "type": "string",
             "format": "uuid",
             "example": "4f9c2a8e-1d3b-4c5e-9f7a-2b6d8e0c1a3f",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required,uuid"
             }
           },
@@ -526,7 +526,7 @@
             "description": "When the row was created.",
             "type": "string",
             "format": "date-time",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required"
             }
           },
@@ -534,7 +534,7 @@
             "description": "When the row was last updated.",
             "type": "string",
             "format": "date-time",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required"
             }
           },
@@ -542,14 +542,14 @@
             "description": "Display name of the author.",
             "type": "string",
             "example": "Ursula K. Le Guin",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required"
             }
           },
           "bio": {
             "description": "Short biography.",
             "type": "string",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty"
             }
           },
@@ -558,7 +558,7 @@
             "type": "string",
             "format": "date",
             "example": "1929-10-21",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty,datetime=2006-01-02"
             }
           },
@@ -583,14 +583,14 @@
             "description": "Display name of the author.",
             "type": "string",
             "example": "Ursula K. Le Guin",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required"
             }
           },
           "bio": {
             "description": "Short biography.",
             "type": "string",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty"
             }
           },
@@ -599,7 +599,7 @@
             "type": "string",
             "format": "date",
             "example": "1929-10-21",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty,datetime=2006-01-02"
             }
           },
@@ -621,7 +621,7 @@
             "type": "string",
             "format": "uuid",
             "example": "4f9c2a8e-1d3b-4c5e-9f7a-2b6d8e0c1a3f",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required,uuid"
             }
           }
@@ -639,7 +639,7 @@
             "type": "string",
             "format": "uuid",
             "example": "4f9c2a8e-1d3b-4c5e-9f7a-2b6d8e0c1a3f",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required,uuid"
             }
           },
@@ -647,7 +647,7 @@
             "description": "When the row was created.",
             "type": "string",
             "format": "date-time",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required"
             }
           },
@@ -655,7 +655,7 @@
             "description": "When the row was last updated.",
             "type": "string",
             "format": "date-time",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required"
             }
           },
@@ -663,7 +663,7 @@
             "description": "Author who wrote the book.",
             "type": "string",
             "format": "uuid",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required,uuid"
             }
           },
@@ -671,14 +671,14 @@
             "description": "Title of the book.",
             "type": "string",
             "example": "The Left Hand of Darkness",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required"
             }
           },
           "isbn": {
             "description": "International Standard Book Number.",
             "type": "string",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required"
             }
           },
@@ -689,7 +689,7 @@
                 "$ref": "#/components/schemas/DbSchemaBookGenre"
               }
             ],
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required"
             }
           },
@@ -699,7 +699,7 @@
             "items": {
               "$ref": "#/components/schemas/DbSchemaBookFormat"
             },
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required"
             }
           },
@@ -713,7 +713,7 @@
               "classic",
               "award-winner"
             ],
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty"
             }
           },
@@ -723,14 +723,14 @@
             "items": {
               "$ref": "#/components/schemas/DbSchemaUuid"
             },
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty"
             }
           },
           "pages": {
             "description": "Number of pages.",
             "type": "integer",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty"
             }
           },
@@ -738,14 +738,14 @@
             "description": "List price in USD.",
             "type": "number",
             "example": 12.5,
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required"
             },
             "x-protoforge-presence": true
           },
           "metadata": {
             "description": "Arbitrary publisher metadata.",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty"
             }
           }
@@ -769,7 +769,7 @@
             "description": "The book being reviewed.",
             "type": "string",
             "format": "uuid",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required,uuid"
             }
           },
@@ -779,7 +779,7 @@
             "items": {
               "$ref": "#/components/schemas/BookModelReviewInput"
             },
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required"
             }
           }
@@ -797,7 +797,7 @@
             "description": "Author who wrote the book.",
             "type": "string",
             "format": "uuid",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required,uuid"
             }
           },
@@ -805,14 +805,14 @@
             "description": "Title of the book.",
             "type": "string",
             "example": "The Left Hand of Darkness",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required"
             }
           },
           "isbn": {
             "description": "International Standard Book Number.",
             "type": "string",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required"
             }
           },
@@ -823,7 +823,7 @@
                 "$ref": "#/components/schemas/DbSchemaBookGenre"
               }
             ],
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required"
             }
           },
@@ -833,7 +833,7 @@
             "items": {
               "$ref": "#/components/schemas/DbSchemaBookFormat"
             },
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required"
             }
           },
@@ -847,7 +847,7 @@
               "classic",
               "award-winner"
             ],
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty"
             }
           },
@@ -857,14 +857,14 @@
             "items": {
               "$ref": "#/components/schemas/DbSchemaUuid"
             },
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty"
             }
           },
           "pages": {
             "description": "Number of pages.",
             "type": "integer",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty"
             }
           },
@@ -872,14 +872,14 @@
             "description": "List price in USD.",
             "type": "number",
             "example": 12.5,
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required"
             },
             "x-protoforge-presence": true
           },
           "metadata": {
             "description": "Arbitrary publisher metadata.",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty"
             }
           }
@@ -900,7 +900,7 @@
             "description": "The book ID.",
             "type": "string",
             "format": "uuid",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required,uuid"
             }
           }
@@ -918,7 +918,7 @@
             "type": "string",
             "format": "uuid",
             "example": "4f9c2a8e-1d3b-4c5e-9f7a-2b6d8e0c1a3f",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required,uuid"
             }
           },
@@ -926,7 +926,7 @@
             "description": "When the row was created.",
             "type": "string",
             "format": "date-time",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required"
             }
           },
@@ -934,7 +934,7 @@
             "description": "When the row was last updated.",
             "type": "string",
             "format": "date-time",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required"
             }
           },
@@ -942,7 +942,7 @@
             "description": "Reviewed book.",
             "type": "string",
             "format": "uuid",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required,uuid"
             }
           },
@@ -950,14 +950,14 @@
             "description": "Rating from 1 to 5.",
             "type": "integer",
             "example": 5,
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required"
             },
             "x-protoforge-presence": true
           },
           "body": {
             "type": "string",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty"
             }
           }
@@ -979,7 +979,7 @@
             "format": "int32",
             "maximum": 5,
             "minimum": 1,
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required,gte=1,lte=5,int32"
             },
             "x-protoforge-presence": true
@@ -988,7 +988,7 @@
             "description": "Review text.",
             "type": "string",
             "maxLength": 5000,
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty,max=5000"
             }
           }
@@ -1007,7 +1007,7 @@
             "maxLength": 200,
             "minLength": 2,
             "type": "string",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required,min=2,max=200",
               "jsonschema": "Full-text query. Example: left hand"
             }
@@ -1019,7 +1019,7 @@
                 "$ref": "#/components/schemas/DbSchemaBookGenre"
               }
             ],
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty",
               "jsonschema": "Restrict to one genre."
             }
@@ -1031,7 +1031,7 @@
             "default": 20,
             "maximum": 100,
             "minimum": 1,
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty,gte=1,lte=100,int32",
               "jsonschema": "Maximum number of results."
             }
@@ -1040,7 +1040,7 @@
             "description": "Only books published after this date.",
             "type": "string",
             "format": "date",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty,datetime=2006-01-02",
               "jsonschema": "Only books published after this date."
             }
@@ -1049,7 +1049,7 @@
             "description": "Preferred delivery time.",
             "type": "string",
             "format": "time",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty,datetime=15:04:05",
               "jsonschema": "Preferred delivery time."
             }
@@ -1059,7 +1059,7 @@
             "type": "string",
             "pattern": "^[0-9-]{10,17}$",
             "x-validator": "isbn",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty,isbn",
               "jsonschema": "ISBN filter."
             }
@@ -1072,7 +1072,7 @@
             },
             "maxItems": 5,
             "minItems": 1,
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty,min=1,max=5",
               "jsonschema": "Required tags."
             }
@@ -1080,7 +1080,7 @@
           "include_out_of_print": {
             "description": "Include out-of-print books.",
             "type": "boolean",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "jsonschema": "Include out-of-print books."
             }
           },
@@ -1092,7 +1092,7 @@
               "newest",
               "price"
             ],
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty,oneof=relevance newest price",
               "jsonschema": "Sort order."
             }
@@ -1114,7 +1114,7 @@
             "items": {
               "$ref": "#/components/schemas/BookModelBook"
             },
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required"
             }
           },
@@ -1123,7 +1123,7 @@
             "type": "integer",
             "format": "int64",
             "minimum": 0,
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required,gte=0,int64"
             },
             "x-protoforge-presence": true
@@ -1142,7 +1142,7 @@
             "description": "Human-readable explanation.",
             "type": "string",
             "example": "Book not found",
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required"
             }
           },
@@ -1150,7 +1150,7 @@
             "description": "Machine-readable error code.",
             "type": "integer",
             "example": 404,
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "required"
             },
             "x-protoforge-presence": true
@@ -1161,7 +1161,7 @@
             "additionalProperties": {
               "type": "string"
             },
-            "x-oapi-codegen-extra-tags": {
+            "x-protoforge-extra-tags": {
               "validate": "omitempty"
             }
           }
@@ -1194,7 +1194,7 @@
           "paperback",
           "ebook"
         ],
-        "x-oapi-codegen-extra-tags": {
+        "x-protoforge-extra-tags": {
           "validate": "omitempty"
         }
       },
@@ -1206,14 +1206,14 @@
           "sci-fi",
           "poetry"
         ],
-        "x-oapi-codegen-extra-tags": {
+        "x-protoforge-extra-tags": {
           "validate": "omitempty"
         }
       },
       "DbSchemaUuid": {
         "type": "string",
         "format": "uuid",
-        "x-oapi-codegen-extra-tags": {
+        "x-protoforge-extra-tags": {
           "validate": "omitempty,uuid"
         }
       }

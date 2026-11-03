@@ -59,7 +59,7 @@ func (o *OpenAPI) goTags() error {
 	w := &prefixWriter{r: o.ctx.R, prefix: o.Name()}
 	return o.ctx.eachSpec(func(s spec) error {
 		out := OpenAPIOutput(o.ctx.Cfg, s.Spec)
-		if !o.ctx.R.FileOp(o.Name(), "inject x-oapi-codegen-extra-tags into %s", o.ctx.Cfg.Rel(out)) {
+		if !o.ctx.R.FileOp(o.Name(), "inject x-protoforge-extra-tags into %s", o.ctx.Cfg.Rel(out)) {
 			return nil
 		}
 		return gotags.TransformFile(out, out, w)

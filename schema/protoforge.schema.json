@@ -286,7 +286,7 @@
             },
             "go_tags": {
               "type": "boolean",
-              "description": "Inject x-oapi-codegen-extra-tags (validate / jsonschema Go struct tags).",
+              "description": "Inject x-protoforge-extra-tags (validate / jsonschema Go struct tags).",
               "default": false
             },
             "lint": {

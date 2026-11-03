@@ -104,7 +104,7 @@ Steps: `from_drizzle` → `compile` → `run_after`.
 |---|---|---|
 | `dir` | `openapi` | Directory holding the documents (each spec's `output` is relative to it). |
 | `format` | `false` | `openapi-format --configFile oaf-config.yaml -o <output> <output>` for each spec. Without `<dir>/oaf-config.yaml`, a built-in config is used. |
-| `go_tags` | `false` | Injects `x-oapi-codegen-extra-tags` (`validate` and `jsonschema` tags) in Go, byte-identical to the former `transform_openapi.py`. |
+| `go_tags` | `false` | Injects `x-protoforge-extra-tags` (`validate` and `jsonschema` tags) in Go, byte-identical to the former `transform_openapi.py`. |
 | `lint` | — | Spectral ruleset path, used only by `--only lint`. |
 | `run_after` | — | Escape hatch. |
 

@@ -169,7 +169,7 @@ type FromDrizzle struct {
 type OpenAPI struct {
 	Dir      string    `yaml:"dir" doc:"Directory holding the OpenAPI documents (specs.<name>.output is relative to it)." default:"\"openapi\""`
 	Format   bool      `yaml:"format" doc:"Run openapi-format with dir/oaf-config.yaml (or a built-in config)." default:"false"`
-	GoTags   bool      `yaml:"go_tags" doc:"Inject x-oapi-codegen-extra-tags (validate / jsonschema Go struct tags)." default:"false"`
+	GoTags   bool      `yaml:"go_tags" doc:"Inject x-protoforge-extra-tags (validate / jsonschema Go struct tags)." default:"false"`
 	Lint     string    `yaml:"lint,omitempty" doc:"Spectral ruleset path; used only by stage openapi --only lint."`
 	RunAfter []Command `yaml:"run_after,omitempty" doc:"Escape-hatch commands run in dir after the stage."`
 }

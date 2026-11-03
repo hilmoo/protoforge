@@ -119,7 +119,7 @@ typespec:
 openapi:
   dir: %s
   format: true                    # openapi-format (oaf-config.yaml, or the built-in default)
-  go_tags: false                   # inject x-oapi-codegen-extra-tags (validate/jsonschema)
+  go_tags: false                   # inject x-protoforge-extra-tags (validate/jsonschema)
 
 proto:
   dir: %s
