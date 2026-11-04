@@ -226,6 +226,9 @@ func (p *Proto) pass(s spec, kind, templates string, write func(name, content st
 			c = NormalizeModel(c, o)
 		} else {
 			c = NormalizeService(c, o)
+			if c, err = ApplyStreaming(c); err != nil {
+				return fmt.Errorf("%s: %w", filepath.Base(f), err)
+			}
 		}
 		if err := write(filepath.Base(f), c); err != nil {
 			return err

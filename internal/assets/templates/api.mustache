@@ -18,7 +18,7 @@ service {{classname}} {
   {{#description}}
   // {{{.}}}
   {{/description}}
-  rpc {{operationId}} ({{operationId}}Request) returns ({{operationId}}Response);
+  rpc {{operationId}} ({{operationId}}Request) returns ({{operationId}}Response);{{#vendorExtensions.x-protoforge-stream}} // protoforge:stream={{{.}}}{{/vendorExtensions.x-protoforge-stream}}
 
 {{/operation}}
 {{/operations}}

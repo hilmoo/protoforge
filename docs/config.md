@@ -130,6 +130,20 @@ Steps: `format` → `go_tags` → `lint` (only with `--only`) → `run_after`.
 Steps: `models` → `services` → `flatten` → `extra_replace` → `cleanup` (removes
 `<dir>/.tmp`) → `codegen` → `run_after`.
 
+### Streaming rpcs
+
+Mark an operation with `x-protoforge-stream` to emit a streaming rpc (needs the
+embedded `api.mustache`, or a custom one that emits the same marker):
+
+| value | generated |
+|---|---|
+| `server` | `rpc X (XRequest) returns (stream XResponse);` |
+| `client` | `rpc X (stream XRequest) returns (XResponse);` |
+| `bidi` | `rpc X (stream XRequest) returns (stream XResponse);` |
+
+In TypeSpec: `@extension("x-protoforge-stream", "server") op runEvent(...): ...;`
+Any other value fails the `services` step.
+
 Each generator run is
 `openapi-generator-cli generate -g protobuf-schema --global-property models|apis` on
 one spec's document. The `*.proto` files it writes get the built-in normalisations
