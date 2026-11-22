@@ -18,6 +18,7 @@ const fx = "../../testdata/fixtures"
 var defaultNorm = NormOptions{Version: "v1", GoPackageRoot: "proto", AnyType: "google.protobuf.Any", DropImports: []string{"todo_object_mapping", "common_error_error"}}
 
 const sample = "../../testdata/sample"
+const sampleSQLite = "../../testdata/sample-sqlite"
 
 // TestNormalizeFixtures: raw openapi-generator output -> the old line-edit chain's output.
 // Expected trees: the sample's models/v1 and its services/v1 right before
@@ -258,13 +259,19 @@ func TestGeneratorMappings(t *testing.T) {
 // (`npm install` in testdata/sample/db and testdata/sample/api).
 func sampleCopy(t *testing.T, needNode ...string) string {
 	t.Helper()
+	return projectCopy(t, sample, needNode...)
+}
+
+// projectCopy is sampleCopy for any sample project directory (sample, sampleSQLite).
+func projectCopy(t *testing.T, project string, needNode ...string) string {
+	t.Helper()
 	if testing.Short() {
 		t.Skip("integration test")
 	}
-	src, _ := filepath.Abs(sample)
+	src, _ := filepath.Abs(project)
 	for _, d := range needNode {
 		if _, err := os.Stat(filepath.Join(src, d, "node_modules")); err != nil {
-			t.Skipf("run `npm install` in testdata/sample/%s to enable this test", d)
+			t.Skipf("run `npm install` in %s/%s to enable this test", filepath.Base(project), d)
 		}
 	}
 	dst := filepath.Join(t.TempDir(), "sample")
@@ -392,6 +399,101 @@ func TestDrizzleSpreads(t *testing.T) {
 	}
 }
 
+// runDrizzleFixture copies the .ts files of a fixture directory into the sample
+// project, runs the embedded script on them and returns the written file, the
+// combined output and the script's error.
+func runDrizzleFixture(t *testing.T, dir string) (got, out string, err error) {
+	t.Helper()
+	root := sampleCopy(t, "db")
+	ctx, buf := sampleCtx(t, root)
+	src, _ := filepath.Abs(dir)
+	dst := filepath.Join(root, "db", "src", "fixture")
+	os.MkdirAll(dst, 0o755)
+	files, _ := filepath.Glob(filepath.Join(src, "*.ts"))
+	if len(files) == 0 {
+		t.Fatalf("no .ts files in %s", dir)
+	}
+	for _, f := range files {
+		b, _ := os.ReadFile(f)
+		os.WriteFile(filepath.Join(dst, filepath.Base(f)), b, 0o644)
+	}
+	ctx.Cfg.TypeSpec.FromDrizzle.SchemaDir = "../db/src/fixture"
+	ctx.Cfg.TypeSpec.FromDrizzle.Out = "fixture.tsp"
+	ts := &TypeSpec{ctx: ctx, c: ctx.Cfg.TypeSpec}
+	err = ts.fromDrizzle()
+	b, _ := os.ReadFile(filepath.Join(root, "api", "fixture.tsp"))
+	return string(b), buf.String(), err
+}
+
+// sameAfterHeader compares generated TypeSpec with a golden file, ignoring the
+// first line (it names the schema dir, which differs between fixture and copy).
+func sameAfterHeader(got, want string) bool {
+	g, w := strings.SplitN(got, "\n", 2), strings.SplitN(want, "\n", 2)
+	return len(g) == 2 && len(w) == 2 && g[1] == w[1]
+}
+
+// TestDrizzleSQLite: a sqlite-core schema covering every column kind, text
+// enums (one shared by two columns), a foreign key, spreads and `// @format`.
+func TestDrizzleSQLite(t *testing.T) {
+	got, out, err := runDrizzleFixture(t, filepath.Join(fx, "drizzle", "sqlite", "schema"))
+	if err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	want, _ := os.ReadFile(filepath.Join(fx, "drizzle", "sqlite", "expected.tsp"))
+	if !sameAfterHeader(got, string(want)) {
+		t.Fatalf("sqlite output differs from golden:\n%s", got)
+	}
+	if strings.Count(got, "enum AuthorBookGenre") != 1 {
+		t.Errorf("identical enums were not merged:\n%s", got)
+	}
+	if !strings.Contains(out, "no doc comment for kinds.no_doc") || strings.Count(out, "no doc comment") != 1 {
+		t.Errorf("unexpected warnings:\n%s", out)
+	}
+	if strings.Contains(out, "unmapped column type") {
+		t.Errorf("a sqlite column type is unmapped:\n%s", out)
+	}
+}
+
+// TestDrizzleFormatHint covers `// @format <name>` on a Postgres schema: a hint
+// on a text column, a duplicate of the uuid type's own format (emitted once) and
+// a hint on an array column (warning, ignored).
+func TestDrizzleFormatHint(t *testing.T) {
+	got, out, err := runDrizzleFixture(t, filepath.Join(fx, "drizzle", "format", "schema"))
+	if err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	want, _ := os.ReadFile(filepath.Join(fx, "drizzle", "format", "expected.tsp"))
+	if !sameAfterHeader(got, string(want)) {
+		t.Fatalf("format output differs from golden:\n%s", got)
+	}
+	if !strings.Contains(out, "contacts.tags: @format hostname ignored") {
+		t.Errorf("missing warning for the array column:\n%s", out)
+	}
+}
+
+// TestDrizzleErrors: schemas the script must refuse, without writing a file.
+func TestDrizzleErrors(t *testing.T) {
+	for name, want := range map[string]string{
+		"format-conflict":      "@format email conflicts with the column type's @format(\"uuid\")",
+		"format-twice":         "expected exactly one `@format <name>` hint, got 2",
+		"mixed-dialect":        "schema mixes pg-core and sqlite-core tables",
+		"sqlite-enum-conflict": "enum AuthorBookGenre is produced by",
+	} {
+		t.Run(name, func(t *testing.T) {
+			got, out, err := runDrizzleFixture(t, filepath.Join(fx, "drizzle", "errors", name))
+			if err == nil {
+				t.Fatalf("expected a failure, got output:\n%s", got)
+			}
+			if !strings.Contains(out, want) {
+				t.Errorf("output does not contain %q:\n%s", want, out)
+			}
+			if got != "" {
+				t.Errorf("a file was written despite the error:\n%s", got)
+			}
+		})
+	}
+}
+
 // TestProtoWithGenerator runs the real openapi-generator on the sample's OpenAPI
 // document and compares the registry with the golden one.
 func TestProtoWithGenerator(t *testing.T) {
@@ -434,6 +536,34 @@ func TestSamplePipeline(t *testing.T) {
 		}
 		if err := RunStage(ctx, s, nil); err != nil {
 			t.Fatalf("%s: %v\n%s", n, err, out)
+		}
+	}
+	compareSnapshots(t, snapshot(t, root), want)
+}
+
+// TestSampleSQLitePipeline: the migration stage (generate, docs, sync) and
+// typespec.from_drizzle on the sqlite-core sample must reproduce every checked-in
+// output. push is not run (it needs a native SQLite driver package for drizzle-kit).
+func TestSampleSQLitePipeline(t *testing.T) {
+	root := projectCopy(t, sampleSQLite, "db")
+	want := snapshot(t, root)
+	for _, p := range []string{"api/src/_generated", "server/migrations", "db/schema.dbml"} {
+		os.RemoveAll(filepath.Join(root, filepath.FromSlash(p)))
+	}
+	ctx, out := sampleCtx(t, root)
+	if m := ctx.Cfg.Migration; m.Dialect != "sqlite" || m.DatabaseURLEnv != "DB_FILE_NAME" || m.Docs.Dialect != "sqlite" {
+		t.Fatalf("sample config: %+v", m)
+	}
+	for _, run := range []struct {
+		stage string
+		only  []string
+	}{{"migration", nil}, {"typespec", []string{"from_drizzle"}}} {
+		s, err := New(ctx, run.stage)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := RunStage(ctx, s, run.only); err != nil {
+			t.Fatalf("%s: %v\n%s", run.stage, err, out)
 		}
 	}
 	compareSnapshots(t, snapshot(t, root), want)

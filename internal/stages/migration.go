@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	"github.com/hilmoo/protoforge/internal/config"
-	"github.com/hilmoo/protoforge/internal/pgsql"
+	"github.com/hilmoo/protoforge/internal/dbexec"
 	"github.com/hilmoo/protoforge/internal/runner"
 	"github.com/hilmoo/protoforge/internal/syncmig"
 	"github.com/hilmoo/protoforge/internal/textops"
@@ -55,11 +55,11 @@ func (m *Migration) postPush() error {
 	if len(m.c.PostPushSQL) == 0 {
 		return errors.New("migration.post_push_sql is empty")
 	}
-	if !m.ctx.R.FileOp(m.Name(), "execute %d post_push_sql statement(s) in one transaction via DATABASE_URL", len(m.c.PostPushSQL)) {
+	if !m.ctx.R.FileOp(m.Name(), "execute %d post_push_sql statement(s) in one transaction (%s, $%s)", len(m.c.PostPushSQL), m.c.Dialect, m.c.DatabaseURLEnv) {
 		return nil
 	}
-	url := runner.Getenv(m.ctx.R.Env, "DATABASE_URL")
-	if err := pgsql.Run(context.Background(), url, m.c.PostPushSQL); err != nil {
+	url := runner.Getenv(m.ctx.R.Env, m.c.DatabaseURLEnv)
+	if err := dbexec.Run(context.Background(), m.c.Dialect, m.c.DatabaseURLEnv, url, m.dir(), m.c.PostPushSQL); err != nil {
 		return err
 	}
 	m.ctx.R.Logf(m.Name(), "post_push_sql committed")

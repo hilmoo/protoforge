@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -23,13 +24,15 @@ type Options struct {
 
 type detected struct {
 	migration, drizzleConfig, typespec, entry, openapi, output, proto string
+	dialect                                                           string // postgresql | sqlite, read from drizzle.config.ts
+	urlEnv                                                            string // env var drizzle.config.ts reads the database location from
 }
 
 var skipDirs = map[string]bool{"node_modules": true, ".git": true, "dist": true, "target": true, "vendor": true, ".devbox": true, "gen": true}
 
 // detect searches (up to 3 levels deep) for drizzle.config.ts, a .tsp entry and an openapi.json.
 func detect(root string) detected {
-	d := detected{migration: "migration", drizzleConfig: "drizzle.config.ts", typespec: "openapi", entry: "./src", openapi: "openapi", output: "openapi.json", proto: "proto"}
+	d := detected{migration: "migration", drizzleConfig: "drizzle.config.ts", typespec: "openapi", entry: "./src", openapi: "openapi", output: "openapi.json", proto: "proto", dialect: "postgresql", urlEnv: "DATABASE_URL"}
 	var drizzle, tspMain, oapi []string
 	_ = filepath.WalkDir(root, func(p string, e os.DirEntry, err error) error {
 		if err != nil {
@@ -58,6 +61,9 @@ func detect(root string) detected {
 	if len(drizzle) > 0 {
 		d.migration = slash(filepath.Dir(drizzle[0]))
 		d.drizzleConfig = filepath.Base(drizzle[0])
+		if b, err := os.ReadFile(filepath.Join(root, drizzle[0])); err == nil {
+			d.dialect, d.urlEnv = inspectDrizzleConfig(string(b))
+		}
 	}
 	if len(tspMain) > 0 {
 		// main.tsp in <dir>/src -> dir=<dir>, entry=./src
@@ -76,6 +82,29 @@ func detect(root string) detected {
 	return d
 }
 
+var (
+	dialectRe = regexp.MustCompile(`dialect:\s*["'](\w+)["']`)
+	envRe     = regexp.MustCompile(`process\.env\.(\w+)`)
+)
+
+// inspectDrizzleConfig reads the dialect and the database env var out of a
+// drizzle.config.ts. Anything it cannot recognise falls back to PostgreSQL and
+// DATABASE_URL. It is a text match, not a TypeScript parse: init only suggests a
+// value, which the user can edit.
+func inspectDrizzleConfig(src string) (dialect, urlEnv string) {
+	dialect, urlEnv = "postgresql", "DATABASE_URL"
+	if m := dialectRe.FindStringSubmatch(src); m != nil && m[1] == "sqlite" {
+		dialect = "sqlite"
+	}
+	for _, m := range envRe.FindAllStringSubmatch(src, -1) {
+		if m[1] != "NODE_ENV" {
+			urlEnv = m[1]
+			break
+		}
+	}
+	return dialect, urlEnv
+}
+
 func slash(p string) string { return filepath.ToSlash(p) }
 
 // Template renders the default protoforge.yaml for detected directories.
@@ -85,21 +114,22 @@ func template(d detected) string {
 # protoforge.yaml — see docs/config.md for every option and its default.
 version: 1
 
-env_file: .env                     # loaded into child processes and used for DATABASE_URL
+env_file: .env                     # loaded into child processes and used for the database env var
 
 # tools:                           # all optional; auto-detected
 #   node_runner: pnpm exec         # pnpm exec | npx | bunx, picked from the lockfile
 #   openapi_generator: openapi-generator-cli
 
 migration:
-  dir: %s
+  dialect: %s                  # postgresql | sqlite, as in drizzle.config.ts
+%s  dir: %s
   drizzle_config: %s
   generate: true                   # drizzle-kit generate
   push: false                      # drizzle-kit push
   migrate: false                   # drizzle-kit migrate
   docs:                            # drizzle-docs generate; remove to skip
     schema_dir: ./src/schema
-    dialect: postgresql
+    dialect: %s
     format: dbml
     out: schema.dbml
   # post_push_sql: []              # raw SQL run in ONE transaction after push
@@ -141,7 +171,16 @@ specs:
 
 # pipelines:                       # defaults: api = typespec openapi proto, sql = migration, all = sql api
 #   api: [ typespec, openapi, proto ]
-`, config.SchemaID, d.migration, d.drizzleConfig, d.typespec, schemaFromTS, d.openapi, d.proto, d.entry, d.output)
+`, config.SchemaID, d.dialect, urlEnvLine(d), d.migration, d.drizzleConfig, d.dialect, d.typespec, schemaFromTS, d.openapi, d.proto, d.entry, d.output)
+}
+
+// urlEnvLine is the database_url_env option, written only when drizzle.config.ts
+// reads another variable than the default.
+func urlEnvLine(d detected) string {
+	if d.urlEnv == "" || d.urlEnv == "DATABASE_URL" {
+		return "  # database_url_env: DATABASE_URL  # env var holding the DB location (post_push_sql, doctor)\n"
+	}
+	return fmt.Sprintf("  database_url_env: %s\n", d.urlEnv)
 }
 
 func relTo(base, p string) string {

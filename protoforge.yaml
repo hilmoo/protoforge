@@ -14,7 +14,8 @@
 # Config schema version. Must be 1. (default: 1)
 version: 1
 
-# dotenv file loaded into every child process and used for DATABASE_URL.
+# dotenv file loaded into every child process and used for the database env var
+# (DATABASE_URL, or migration.database_url_env).
 # Does not override variables already set; a missing file is ignored.
 env_file: .env
 
@@ -48,6 +49,11 @@ tools:
 # Steps: generate -> docs -> push -> post_push_sql -> migrate -> sync -> run_after
 # ---------------------------------------------------------------------------
 migration:
+  # dialect: sqlite # postgresql | sqlite; picks the post_push_sql driver and is the
+  #                 # default of docs.dialect (default: postgresql)
+  # database_url_env: DB_FILE_NAME # env var holding the DB location (default: DATABASE_URL).
+  #   sqlite accepts file:./x.db, sqlite:./x.db, ./x.db or an absolute path, resolved
+  #   against migration.dir; libsql:// and :memory: are rejected.
   dir: migration # Drizzle project directory (default: migration)
   drizzle_config: drizzle.config.ts # passed to drizzle-kit --config (default: drizzle.config.ts)
   drizzle_out: drizzle # Drizzle's out dir, read by sync (default: drizzle)
@@ -58,12 +64,13 @@ migration:
   # drizzle-docs generate. Omit to skip; `docs: {}` uses all defaults.
   docs:
     schema_dir: ./src/schema # relative to migration.dir (default: ./src/schema)
-    dialect: postgresql # postgresql | mysql | sqlite (default: postgresql)
+    dialect: postgresql # defaults to migration.dialect; when set it must equal it
     format: dbml # dbml | markdown (default: dbml)
     out: schema.dbml # relative to migration.dir (default: schema.dbml)
 
-  # Raw SQL run in ONE transaction over DATABASE_URL after push (rolled back
-  # on error). Each entry may hold several statements or DO blocks.
+  # Raw SQL run in ONE transaction over the database named by database_url_env
+  # after push (rolled back on error). Each entry may hold several statements;
+  # DO blocks are PostgreSQL-only.
   # Also runnable with:  protoforge stage migration --only post_push_sql
   post_push_sql:
     - |

@@ -1,0 +1,21 @@
+Table "authors" {
+  "id" text [primary key, not null]
+  "created_at" integer [not null]
+  "updated_at" integer [not null]
+  "name" text [not null, note: 'Display name.']
+  "bio" text [note: 'Free-form biography.']
+}
+
+Table "books" {
+  "id" text [primary key, not null]
+  "created_at" integer [not null]
+  "updated_at" integer [not null]
+  "title" text [not null, note: 'Book title.']
+  "author_id" text [not null, note: 'Owning author.']
+  "genre" text [not null, note: 'Literary genre.']
+  "rating" real [not null, default: 0, note: 'Average rating, 0 to 5.']
+  "in_stock" integer [not null, note: 'Whether the book is in stock.']
+  "attributes" text [note: 'Extra attributes as JSON.']
+}
+
+Ref: "books"."author_id" > "authors"."id"

@@ -15,7 +15,7 @@
     },
     "env_file": {
       "type": "string",
-      "description": "dotenv file loaded into every child process (and used for DATABASE_URL). Does not override variables already set. A missing file is ignored."
+      "description": "dotenv file loaded into every child process (and used for the variable named by migration.database_url_env). Does not override variables already set. A missing file is ignored."
     },
     "env": {
       "type": "object",
@@ -83,6 +83,21 @@
         {
           "type": "object",
           "properties": {
+            "dialect": {
+              "type": "string",
+              "description": "Database dialect. Picks the driver used by post_push_sql and the doctor check, and is the default for docs.dialect. Set it to match drizzle.config.ts; protoforge init detects it.",
+              "default": "postgresql",
+              "enum": [
+                "postgresql",
+                "sqlite"
+              ]
+            },
+            "database_url_env": {
+              "type": "string",
+              "description": "Name of the environment variable holding the database location for post_push_sql and the doctor check: a connection URL for postgresql, a file path or file:/sqlite: URL for sqlite (relative paths resolve against dir).",
+              "default": "DATABASE_URL",
+              "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+            },
             "dir": {
               "type": "string",
               "description": "Drizzle project directory.",
@@ -123,7 +138,7 @@
                 },
                 "dialect": {
                   "type": "string",
-                  "description": "Passed as -d.",
+                  "description": "Passed as -d. Defaults to migration.dialect; when set it must equal migration.dialect.",
                   "default": "postgresql",
                   "examples": [
                     "postgresql",
@@ -154,7 +169,7 @@
               "items": {
                 "type": "string"
               },
-              "description": "Raw SQL run in ONE transaction over DATABASE_URL after push (rolled back on error). Each entry may hold several statements or DO blocks. Also runnable with --only post_push_sql."
+              "description": "Raw SQL run in ONE transaction over the database named by database_url_env after push (rolled back on error). Each entry may hold several statements; DO blocks are PostgreSQL-only. Also runnable with --only post_push_sql."
             },
             "sync": {
               "type": "object",

@@ -5,10 +5,12 @@ package doctor
 import (
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/hilmoo/protoforge/internal/config"
+	"github.com/hilmoo/protoforge/internal/dbexec"
 	"github.com/hilmoo/protoforge/internal/runner"
 	"github.com/hilmoo/protoforge/internal/stages"
 )
@@ -88,12 +90,13 @@ func Run(cfg *config.Config, r *runner.Runner, nodeRunner string, w io.Writer) e
 	}
 
 	if m := cfg.Migration; m != nil && (m.Push || m.Migrate || len(m.PostPushSQL) > 0) {
-		if runner.Getenv(r.Env, "DATABASE_URL") == "" {
-			fmt.Fprintf(w, "  ✗ %-22s not set — needed by migration.push/migrate/post_push_sql\n", "DATABASE_URL")
-			missing = append(missing, "DATABASE_URL")
-		} else {
-			fmt.Fprintf(w, "  ✓ %-22s set\n", "DATABASE_URL")
+		msg, ok := databaseStatus(m, runner.Getenv(r.Env, m.DatabaseURLEnv), cfg.Abs("", m.Dir))
+		mark := "✓"
+		if !ok {
+			mark = "✗"
+			missing = append(missing, m.DatabaseURLEnv)
 		}
+		fmt.Fprintf(w, "  %s %-22s %s\n", mark, m.DatabaseURLEnv, msg)
 	}
 	fmt.Fprintln(w)
 	if len(missing) > 0 {
@@ -101,6 +104,33 @@ func Run(cfg *config.Config, r *runner.Runner, nodeRunner string, w io.Writer) e
 	}
 	fmt.Fprintln(w, "all requirements satisfied")
 	return nil
+}
+
+// databaseStatus describes the database location env var for the report. For
+// sqlite the value is parsed exactly like post_push_sql does; remote libSQL URLs
+// are fine for drizzle-kit itself, so they only fail when post_push_sql needs them.
+func databaseStatus(m *config.Migration, val, dir string) (msg string, ok bool) {
+	where := "needed by migration.push/migrate/post_push_sql"
+	if val == "" {
+		return "not set — " + where, false
+	}
+	if m.Dialect != "sqlite" {
+		return "set", true
+	}
+	path, err := dbexec.SQLitePath(val, dir)
+	if err != nil {
+		if len(m.PostPushSQL) == 0 {
+			return "set (not a local file: used by drizzle-kit only)", true
+		}
+		return fmt.Sprintf("%v (migration.post_push_sql needs a local file)", err), false
+	}
+	if _, err := os.Stat(path); err == nil {
+		return fmt.Sprintf("sqlite file %s (exists)", path), true
+	}
+	if m.Push {
+		return fmt.Sprintf("sqlite file %s (will be created by drizzle-kit push)", path), true
+	}
+	return fmt.Sprintf("sqlite file %s (does not exist yet)", path), true
 }
 
 func versionOf(r *runner.Runner, argv []string, dir string) string {

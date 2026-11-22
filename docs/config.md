@@ -23,7 +23,7 @@ expansion applied.
 | key | default | meaning |
 |---|---|---|
 | `version` | `1` | Schema version. Must be `1`. |
-| `env_file` | — | dotenv file loaded into every child process (and used for `DATABASE_URL`). It does not override variables already set in the environment. A missing file is ignored. |
+| `env_file` | — | dotenv file loaded into every child process (and used for the variable named by `migration.database_url_env`). It does not override variables already set in the environment. A missing file is ignored. |
 | `env` | — | Map of extra variables. Values support `${VAR}` expansion against the process environment plus `env_file`. These **do** override. |
 | `tools` | auto | See [tools](#tools). |
 | `migration`, `typespec`, `openapi`, `proto` | absent | Stage sections, described below. |
@@ -48,14 +48,16 @@ On Windows, `PATHEXT` is honoured, so `pnpm.cmd` and `npx.cmd` shims are found.
 
 | key | default | meaning |
 |---|---|---|
+| `dialect` | `postgresql` | `postgresql` or `sqlite`. Picks the driver for `post_push_sql` and the `doctor` check, and is the default of `docs.dialect`. Set it to match `drizzle.config.ts` (`protoforge init` detects it). |
+| `database_url_env` | `DATABASE_URL` | Name of the environment variable holding the database location, for both dialects. `post_push_sql`, `doctor` and their error messages use it. For `sqlite` the value is `file:./x.db`, `sqlite:./x.db`, `./x.db` or an absolute path; a relative path resolves against `dir`. `libsql://`, `http(s)://` and `:memory:` are rejected. |
 | `dir` | `migration` | Drizzle project directory. |
 | `drizzle_config` | `drizzle.config.ts` | Passed as `--config`. |
 | `drizzle_out` | `drizzle` | Drizzle's `out` directory (read by `sync`). |
 | `generate` | `false` | `drizzle-kit generate`. |
 | `push` | `false` | `drizzle-kit push`. |
 | `migrate` | `false` | `drizzle-kit migrate`. |
-| `docs` | absent | `drizzle-docs generate <schema_dir> -d <dialect> -f <format> -o <out> --force`. Keys: `schema_dir` (`./src/schema`), `dialect` (`postgresql`), `format` (`dbml`), `out` (`schema.dbml`). Use `docs: {}` for all defaults. |
-| `post_push_sql` | — | List of SQL strings (each may hold several statements or `DO` blocks), run in **one transaction** over `DATABASE_URL` and rolled back on any error. Runs only after `push`, or explicitly with `--only post_push_sql`. |
+| `docs` | absent | `drizzle-docs generate <schema_dir> -d <dialect> -f <format> -o <out> --force`. Keys: `schema_dir` (`./src/schema`), `dialect` (follows `migration.dialect`; if set it must equal it), `format` (`dbml`), `out` (`schema.dbml`). Use `docs: {}` for all defaults. |
+| `post_push_sql` | — | List of SQL strings (each may hold several statements), run in **one transaction** over the database named by `database_url_env` and rolled back on any error. `DO` blocks are PostgreSQL-only; SQLite allows DDL inside the transaction, and its database file must already exist. Runs only after `push`, or explicitly with `--only post_push_sql`. |
 | `sync` | absent | Replaces `sync.sh`. For each `<drizzle_out>/<name>/migration.sql`, writes `<to>/<name><suffix>` with backticks turned into `"` and `--> statement-breakpoint` lines removed. Keys: `to` (required, relative to `dir`), `suffix` (`.up.sql`), `extra_replace` (rules, see below). Only the *contents* of `to` are cleaned (dotfiles are kept). Refuses `/`, `$HOME`, or anything outside the repo root. |
 | `run_after` | — | [Escape-hatch commands](#run_after). |
 
@@ -87,8 +89,20 @@ line. Spread columns are resolved like JavaScript does it: `...base`,
 `...ns.base` (namespace import), `...timestamps()` (helper returning an object) and
 `...{ ... }` work across files and through aliased imports, and a later
 member overrides an earlier one. Tables may be written as `pgTable("t", { ... })`,
-`pgTable("t", (t) => ({ ... }))` or `schema.table("t", { ... })`. Columns are
-matched by property key.
+`pgTable("t", (t) => ({ ... }))`, `schema.table("t", { ... })`, `sqliteTable("t", { ... })`
+or `sqliteTable("t", (t) => ({ ... }))`. Columns are matched by property key.
+
+Two hints can sit among the doc lines (lines starting with `@` are never part of `@doc`):
+
+| hint | emits | notes |
+|---|---|---|
+| `@example <typespec value>` | `@example(<value>)` | any number per column |
+| `@format <name>` | `@format("<name>")` | at most one per column. Repeating the column type's own format (a pg `uuid`) emits it once; contradicting it fails. On an array column it is ignored with a warning. Use `// @format uuid` on SQLite text ids. |
+
+The dialect is detected from the exported tables: `pg-core` and `sqlite-core` tables
+in one schema directory are an error. For SQLite, `text({ enum: [...] })` becomes a
+named enum `<Singular table><Column>` (identical ones merge, a name clash with other
+values fails), and the other columns map as in the README's SQLite table.
 
 How it runs: the script is extracted to
 `<project>/node_modules/.cache/protoforge/drizzle-to-tsp.<hash>.mts`, where `<project>`

@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=../../schema/protoforge.schema.json
+#
+# SQLite variant of the sample: a sqlite-core Drizzle schema driven through the
+# migration stage (generate, docs, sync) and typespec.from_drizzle. Running
+# those here must reproduce every checked-in output. drizzle-kit push is not
+# exercised in CI (it needs a native SQLite driver package).
+version: 1
+
+migration:
+  dialect: sqlite
+  database_url_env: DB_FILE_NAME   # as in Drizzle's SQLite docs
+  dir: db
+  generate: true
+  docs: {}                         # docs.dialect follows migration.dialect
+  sync:
+    to: ../server/migrations
+
+typespec:
+  dir: api
+  from_drizzle:
+    schema_dir: ../db/src/schema
+    out: src/_generated/db.tsp

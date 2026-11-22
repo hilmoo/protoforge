@@ -62,3 +62,49 @@ func TestDetect(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestInspectDrizzleConfig(t *testing.T) {
+	for _, tc := range []struct{ name, src, dialect, env string }{
+		{"postgres", `export default defineConfig({ dialect: "postgresql", dbCredentials: { url: process.env.DATABASE_URL! } })`, "postgresql", "DATABASE_URL"},
+		{"sqlite, single quotes", `defineConfig({ dialect: 'sqlite', dbCredentials: { url: process.env.DB_FILE_NAME! } })`, "sqlite", "DB_FILE_NAME"},
+		{"turso falls back", `defineConfig({ dialect: "turso", dbCredentials: { url: process.env.TURSO_URL } })`, "postgresql", "TURSO_URL"},
+		{"mysql falls back", `defineConfig({ dialect: "mysql" })`, "postgresql", "DATABASE_URL"},
+		{"no match", `export default {}`, "postgresql", "DATABASE_URL"},
+		{"NODE_ENV is skipped", `const dev = process.env.NODE_ENV; defineConfig({ dialect: "sqlite", dbCredentials: { url: process.env.DB } })`, "sqlite", "DB"},
+	} {
+		d, e := inspectDrizzleConfig(tc.src)
+		if d != tc.dialect || e != tc.env {
+			t.Errorf("%s: got (%s, %s), want (%s, %s)", tc.name, d, e, tc.dialect, tc.env)
+		}
+	}
+}
+
+func TestInitSQLite(t *testing.T) {
+	dir := t.TempDir()
+	os.MkdirAll(filepath.Join(dir, "db"), 0o755)
+	os.WriteFile(filepath.Join(dir, "db", "drizzle.config.ts"), []byte(`export default defineConfig({ dialect: "sqlite", dbCredentials: { url: process.env.DB_FILE_NAME! } })`), 0o644)
+	var out bytes.Buffer
+	if err := Run(Options{Dir: dir, Out: &out}); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := config.Load(filepath.Join(dir, config.FileName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := cfg.Migration
+	if m.Dialect != "sqlite" || m.DatabaseURLEnv != "DB_FILE_NAME" || m.Docs.Dialect != "sqlite" {
+		t.Fatalf("migration: %+v docs: %+v", m, m.Docs)
+	}
+	// With no drizzle.config.ts the Postgres defaults apply.
+	dir2 := t.TempDir()
+	if err := Run(Options{Dir: dir2, Out: &out}); err != nil {
+		t.Fatal(err)
+	}
+	cfg2, err := config.Load(filepath.Join(dir2, config.FileName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg2.Migration.Dialect != "postgresql" || cfg2.Migration.DatabaseURLEnv != "DATABASE_URL" || cfg2.Migration.Docs.Dialect != "postgresql" {
+		t.Fatalf("postgres default broken: %+v", cfg2.Migration)
+	}
+}

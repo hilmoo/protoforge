@@ -2,10 +2,15 @@ package syncmig
 
 import (
 	"bytes"
+	"context"
+	"database/sql"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/hilmoo/protoforge/internal/dbexec"
+	_ "modernc.org/sqlite"
 )
 
 func compareDirs(t *testing.T, got, want string) {
@@ -102,5 +107,54 @@ func TestDryRunTouchesNothing(t *testing.T) {
 	}
 	if len(ops) != 3 {
 		t.Fatalf("ops: %v", ops)
+	}
+}
+
+// TestSQLiteFixture: real drizzle-kit sqlite-core output (backtick identifiers,
+// breakpoints trailing a statement, a PRAGMA table-rebuild migration). The synced
+// files are then executed, in order, against a SQLite database through dbexec,
+// with a row inserted in between to prove the rebuild keeps data.
+func TestSQLiteFixture(t *testing.T) {
+	root := t.TempDir()
+	to := filepath.Join(root, "out")
+	if _, err := Run(Options{From: "../../testdata/fixtures/syncmig/sqlite/input/drizzle", To: to, Root: root}); err != nil {
+		t.Fatal(err)
+	}
+	want := "../../testdata/fixtures/syncmig/sqlite/expected"
+	compareDirs(t, to, want)
+
+	dbPath := filepath.Join(root, "app.db")
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	db.SetMaxOpenConns(1)
+	if _, err := db.Exec("CREATE TABLE seed (x integer)"); err != nil { // materialise the file
+		t.Fatal(err)
+	}
+	apply := func(name string) {
+		t.Helper()
+		b, err := os.ReadFile(filepath.Join(to, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(b), "`") {
+			t.Errorf("%s still has backticks", name)
+		}
+		if err := dbexec.Run(context.Background(), dbexec.SQLite, "DB_FILE_NAME", dbPath, root, []string{string(b)}); err != nil {
+			t.Fatalf("%s does not run on SQLite: %v", name, err)
+		}
+	}
+	apply("20240101000000_init.up.sql")
+	if _, err := db.Exec(`INSERT INTO authors (id, created_at, updated_at, name) VALUES ('a1', 1, 1, 'Ann');
+INSERT INTO books (id, created_at, updated_at, title, author_id, genre, rating, in_stock) VALUES ('b1', 1, 1, 'T', 'a1', 'poetry', 4.5, 1)`); err != nil {
+		t.Fatal(err)
+	}
+	apply("20240102000000_rating_required.up.sql")
+	var title string
+	var rating float64
+	if err := db.QueryRow("SELECT title, rating FROM books WHERE id = 'b1'").Scan(&title, &rating); err != nil || title != "T" || rating != 4.5 {
+		t.Fatalf("row lost in the table rebuild: %q %v %v", title, rating, err)
 	}
 }

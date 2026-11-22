@@ -155,3 +155,38 @@ func TestMarshalRoundTrip(t *testing.T) {
 		t.Fatalf("printed config does not parse: %v\n%s", err, b)
 	}
 }
+
+func TestMigrationDialect(t *testing.T) {
+	c, err := Parse([]byte("version: 1\nmigration:\n  docs: {}\n"), "/repo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m := c.Migration; m.Dialect != "postgresql" || m.DatabaseURLEnv != "DATABASE_URL" || m.Docs.Dialect != "postgresql" {
+		t.Errorf("postgres defaults: %+v docs=%+v", m, m.Docs)
+	}
+	c, err = Parse([]byte("version: 1\nmigration:\n  dialect: sqlite\n  database_url_env: DB_FILE_NAME\n  docs: {}\n"), "/repo")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if m := c.Migration; m.Dialect != "sqlite" || m.DatabaseURLEnv != "DB_FILE_NAME" || m.Docs.Dialect != "sqlite" {
+		t.Errorf("docs.dialect should follow migration.dialect: %+v docs=%+v", m, m.Docs)
+	}
+	// An explicit docs.dialect equal to migration.dialect is fine.
+	if _, err := Parse([]byte("version: 1\nmigration:\n  dialect: sqlite\n  docs: {dialect: sqlite}\n"), "/repo"); err != nil {
+		t.Errorf("matching dialects rejected: %v", err)
+	}
+}
+
+func TestMigrationDialectErrors(t *testing.T) {
+	for name, tc := range map[string]struct{ yaml, want string }{
+		"unknown dialect":  {"migration:\n  dialect: mysql\n", "migration.dialect: must be postgresql or sqlite"},
+		"mismatch":         {"migration:\n  dialect: sqlite\n  docs: {dialect: postgresql}\n", "does not match migration.dialect"},
+		"mismatch default": {"migration:\n  docs: {dialect: sqlite}\n", "does not match migration.dialect"},
+		"bad env name":     {"migration:\n  database_url_env: 1BAD\n", "migration.database_url_env"},
+	} {
+		_, err := Parse([]byte("version: 1\n"+tc.yaml), "/repo")
+		if err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: want error containing %q, got %v", name, tc.want, err)
+		}
+	}
+}

@@ -1,0 +1,13 @@
+{
+  "name": "protoforge-sample-sqlite-db",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "drizzle-orm": "1.0.0-rc.5-ab785fc"
+  },
+  "devDependencies": {
+    "drizzle-docs-generator": "0.8.2",
+    "drizzle-kit": "1.0.0-rc.5-ab785fc",
+    "tsx": "4.23.15"
+  }
+}

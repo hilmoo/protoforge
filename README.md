@@ -16,7 +16,7 @@ Drizzle schema ─► migrations (+ DBML docs) ─► TypeSpec ─► OpenAPI JS
 
 | Stage | What it does | Wraps |
 |---|---|---|
-| `migration` | `drizzle-kit generate/push/migrate`, DBML/markdown docs, transactional `post_push_sql`, and `sync` of migration SQL into another tree | `drizzle-kit`, `drizzle-docs`, Postgres (`pgx`) |
+| `migration` | `drizzle-kit generate/push/migrate`, DBML/markdown docs, transactional `post_push_sql`, and `sync` of migration SQL into another tree | `drizzle-kit`, `drizzle-docs`, Postgres (`pgx`) or SQLite (`modernc.org/sqlite`) |
 | `typespec` | Generates TypeSpec models/enums from your Drizzle schema (embedded script), then compiles | `tsp`, `tsx`/`bun`/`node` |
 | `openapi` | Formats the document and injects Go struct tags (`validate`, `jsonschema`) via `x-protoforge-extra-tags` | `openapi-format`, `spectral` (optional lint) |
 | `proto` | Runs the `protobuf-schema` generator for models and services, normalises output, flattens `*Request` messages, applies custom rewrites, optional `buf generate` | `openapi-generator-cli`, `buf` (optional) |
@@ -136,7 +136,8 @@ Key rules:
   against that stage's `dir`. Forward slashes work everywhere.
 - Unknown keys are errors with line numbers, and the whole file is validated before
   anything runs.
-- `env_file` is loaded into every child process and used for `DATABASE_URL`; `env:`
+- `env_file` is loaded into every child process and used for the database variable
+  (`DATABASE_URL`, or `migration.database_url_env`); `env:`
   values support `${VAR}` and override the environment.
 - Commands (`run_after`, `codegen.commands`) are plain strings run as argv **without a
   shell**, or `{cmd, shell: true}` as an opt-in escape hatch.
@@ -162,6 +163,53 @@ Column doc comments are read from your schema source (`//` above the column,
 `...timestamps()`. Control missing docs with `typespec.from_drizzle.require_docs`
 (`warn` | `error` | `off`).
 
+Two more hints go in the same comment: `@example <typespec value>` becomes
+`@example(...)`, and `@format <name>` becomes `@format("<name>")` (for example
+`// @format uuid` on a text column).
+
+### SQLite
+
+A project whose schema uses `drizzle-orm/sqlite-core` runs through every stage like a
+`pg-core` one. `typespec.from_drizzle` detects the dialect from the exported tables
+(a schema that mixes both kinds is an error); the rest is configured in `migration`:
+
+```yaml
+migration:
+  dialect: sqlite                 # postgresql (default) | sqlite; also the default of docs.dialect
+  database_url_env: DB_FILE_NAME  # env var holding the database location (default: DATABASE_URL)
+  dir: db
+  push: true
+  post_push_sql:
+    - CREATE INDEX IF NOT EXISTS idx_books_title ON books (title);
+```
+
+`protoforge init` reads `dialect` and `process.env.<NAME>` out of your
+`drizzle.config.ts` and writes both for you. `post_push_sql` runs in one transaction
+against the SQLite file the variable points to: `file:./local.db`, `sqlite:./local.db`,
+`./local.db` or an absolute path. A relative path resolves against `migration.dir`,
+the directory drizzle-kit runs in. The file must already exist (`push` creates it);
+protoforge never creates one. `libsql://`, `http(s)://` and `:memory:` are rejected,
+so remote Turso/libSQL databases work with drizzle-kit but not with `post_push_sql`.
+
+Type mapping (Drizzle 1.0 `sqlite-core` column, then TypeSpec):
+
+| Drizzle | TypeSpec |
+|---|---|
+| `text()` | `string` |
+| `text({ enum: [...] })` | a named enum `<Table><Column>`, e.g. `BookGenre` |
+| `text({ mode: "json" })`, `blob({ mode: "json" })`, `blob()` | `unknown` (a bare `blob()` is JSON in Drizzle 1.0) |
+| `integer()`, `blob({ mode: "bigint" })` | `integer` |
+| `integer({ mode: "boolean" })` | `boolean` |
+| `integer({ mode: "timestamp" })`, `integer({ mode: "timestamp_ms" })` | `utcDateTime` |
+| `real()`, `numeric()` (any mode) | `float` |
+| `blob({ mode: "buffer" })` | `bytes` |
+
+SQLite has no enum or uuid type. A text column that carries `enum` becomes a TypeSpec
+enum named after the table (singular) and column; equal names with equal values merge
+into one enum, and equal names with different values fail. Write `// @format uuid`
+above a text id column to get `@format("uuid")` back, and with it uuid validation in
+the generated Go tags.
+
 ## Development
 
 ```sh
@@ -177,7 +225,7 @@ Layout:
 | `internal/config` | Config types, defaults, validation, JSON Schema generation |
 | `internal/stages` | The four stages and their steps |
 | `internal/runner` | Process execution, tool resolution, dry-run, env handling |
-| `internal/flatten`, `gotags`, `syncmig`, `textops`, `pgsql` | Native replacements for the old scripts |
+| `internal/flatten`, `gotags`, `syncmig`, `textops`, `dbexec` | Native replacements for the old scripts |
 | `internal/assets` | Embedded Drizzle→TypeSpec script, mustache templates, default tool configs |
 | `testdata/` | Golden fixtures and a sample project |
 

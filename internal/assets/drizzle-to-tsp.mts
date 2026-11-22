@@ -6,8 +6,9 @@ import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "n
 import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { getTableColumns, is } from "drizzle-orm";
-import { PgTable, getTableConfig, isPgEnum } from "drizzle-orm/pg-core";
+import { PgTable, getTableConfig as getPgTableConfig, isPgEnum } from "drizzle-orm/pg-core";
 import type { PgEnum } from "drizzle-orm/pg-core";
+import { SQLiteTable, getTableConfig as getSQLiteTableConfig } from "drizzle-orm/sqlite-core";
 
 type Params = {
   schemaDir: string;
@@ -41,11 +42,14 @@ const singular = (s: string) =>
 // Docs come from comments on the column's property in the schema source:
 // `//` lines directly above it (no blank line in between), a `/** ... */` block
 // directly above it, or a `//` comment at the end of its line. Plain lines become
-// `@doc`; lines starting with `@example <typespec value>` become `@example(...)`.
+// `@doc`; lines starting with `@example <typespec value>` become `@example(...)`
+// and a line `@format <name>` becomes `@format("<name>")` (e.g. `// @format uuid`
+// on a SQLite text id column, which has no uuid type of its own).
 //
 // The source is read with a small TypeScript tokenizer/parser (no regex over
 // lines), so column objects are found however they are written:
-//   pgTable("t", { ... }), pgTable("t", (t) => ({ ... })), schema.table("t", { ... })
+//   pgTable("t", { ... }), pgTable("t", (t) => ({ ... })), schema.table("t", { ... }),
+//   sqliteTable("t", { ... }), sqliteTable("t", (t) => ({ ... }))
 // and spreads are resolved with JavaScript semantics (a later member overrides an
 // earlier one), recursively, across files:
 //   ...baseColumns            const / exported object in any file (incl. aliased imports)
@@ -54,15 +58,16 @@ const singular = (s: string) =>
 //   ...{ a: x }               inline object
 // ---------------------------------------------------------------------------
 
-type ColDoc = { doc: string; examples: string[] };
+type ColDoc = { doc: string; examples: string[]; formats: string[] };
 
 function toColDoc(lines: string[]): ColDoc {
   const examples = lines.filter((l) => l.startsWith("@example ")).map((l) => l.slice(9).trim());
+  const formats = lines.filter((l) => /^@format(\s|$)/.test(l)).map((l) => l.slice(7).trim());
   const doc = lines
     .filter((l) => !l.startsWith("@"))
     .join(" ")
     .trim();
-  return { doc, examples };
+  return { doc, examples, formats };
 }
 
 // --- tokenizer --------------------------------------------------------------
@@ -694,7 +699,18 @@ function memberDoc(file: SourceFile, members: Member[], key: string, depth = 0):
 
 // --- load the schema ----------------------------------------------------------
 
-const tables = new Map<string, PgTable>();
+type DialectName = "pg" | "sqlite";
+type TableConfig = { name: string; columns: any[]; foreignKeys: any[] };
+
+// One adapter per Drizzle dialect, so the code below does not branch on it.
+// Detection is by the exported table objects themselves, not by configuration.
+const dialects: Record<DialectName, { label: string; isTable(v: unknown): boolean; config(t: any): TableConfig }> = {
+  pg: { label: "pg-core", isTable: (v) => is(v, PgTable), config: (t) => getPgTableConfig(t) },
+  sqlite: { label: "sqlite-core", isTable: (v) => is(v, SQLiteTable), config: (t) => getSQLiteTableConfig(t) },
+};
+
+let dialect: DialectName | undefined;
+const tables = new Map<string, any>();
 const tableSources = new Map<string, { file: SourceFile; exportName: string }>();
 const enums = new Map<string, PgEnum<[string, ...string[]]>>();
 
@@ -707,12 +723,44 @@ for (const p of schemaFiles) loadSource(p);
 for (const p of schemaFiles) {
   const mod = await import(pathToFileURL(p).href);
   for (const [exportName, value] of Object.entries(mod)) {
-    if (is(value, PgTable)) {
-      const name = getTableConfig(value as PgTable).name;
-      tables.set(name, value as PgTable);
+    const kind = (Object.keys(dialects) as DialectName[]).find((d) => dialects[d].isTable(value));
+    if (kind) {
+      if (dialect && dialect !== kind) {
+        console.error(`schema mixes ${dialects[dialect].label} and ${dialects[kind].label} tables (${exportName} in ${p}); a project uses one dialect`);
+        process.exit(1);
+      }
+      dialect = kind;
+      const name = dialects[kind].config(value).name;
+      tables.set(name, value);
       const sf = sources.get(p);
       if (sf && (lookup(sf, exportName) || !tableSources.has(name))) tableSources.set(name, { file: sf, exportName });
     } else if (isPgEnum(value)) enums.set(value.enumName, value as PgEnum<[string, ...string[]]>);
+  }
+}
+if (dialect === "sqlite" && enums.size > 0) {
+  console.error("schema mixes sqlite-core tables with pg-core enums");
+  process.exit(1);
+}
+const tableConfig = (t: any): TableConfig => dialects[dialect ?? "pg"].config(t);
+
+// SQLite has no enum type: Drizzle keeps the allowed values on a text column
+// (`text({ enum: [...] })`). Each such column becomes a named TypeSpec enum
+// <Singular table><Column>; equal names with equal values merge into one enum.
+const sqliteEnums = new Map<string, string[]>();
+const sqliteEnumName = (tableName: string, col: any) => `${pascal(singular(tableName))}${pascal(col.name)}`;
+if (dialect === "sqlite") {
+  for (const [tableName, table] of tables) {
+    for (const col of tableConfig(table).columns) {
+      const values: string[] | undefined = col.enumValues;
+      if (col.columnType !== "SQLiteText" || !values?.length) continue;
+      const name = sqliteEnumName(tableName, col);
+      const have = sqliteEnums.get(name);
+      if (have && have.join("\0") !== values.join("\0")) {
+        console.error(`enum ${name} is produced by ${tableName}.${col.name} with values [${values.join(", ")}], but an earlier column already produced it with [${have.join(", ")}]; rename a table or column`);
+        process.exit(1);
+      }
+      sqliteEnums.set(name, values);
+    }
   }
 }
 
@@ -729,14 +777,42 @@ function columnDoc(tableName: string, key: string): ColDoc | undefined {
 //  - 1.0 beta: the column keeps its own type and carries `dimensions` (> 0 for arrays)
 // Both map to `T[]`. Element types can't carry property decorators like @format, so
 // uuid elements use the `Uuid` scalar declared in the generated file header.
-function typeOf(col: any, inArray = false): { type: string; decorators: string[] } {
+function typeOf(col: any, tableName: string, inArray = false): { type: string; decorators: string[] } {
+  if (dialect === "sqlite") return sqliteScalarOf(col, tableName);
   if (col.baseColumn) {
-    const inner = typeOf(col.baseColumn, true);
+    const inner = typeOf(col.baseColumn, tableName, true);
     return { type: `${inner.type}[]`, decorators: [] };
   }
   const dims = Number(col.dimensions ?? 0);
   const base = scalarOf(col, inArray || dims > 0);
   return dims > 0 ? { type: base.type + "[]".repeat(dims), decorators: [] } : base;
+}
+
+function sqliteScalarOf(col: any, tableName: string): { type: string; decorators: string[] } {
+  switch (col.columnType) {
+    case "SQLiteText":
+      return { type: col.enumValues?.length ? sqliteEnumName(tableName, col) : "string", decorators: [] };
+    case "SQLiteInteger":
+    case "SQLiteBigInt":
+      return { type: "integer", decorators: [] };
+    case "SQLiteBoolean":
+      return { type: "boolean", decorators: [] };
+    case "SQLiteTimestamp":
+      return { type: "utcDateTime", decorators: [] };
+    case "SQLiteReal":
+    case "SQLiteNumeric":
+    case "SQLiteNumericNumber":
+    case "SQLiteNumericBigInt":
+      return { type: "float", decorators: [] };
+    case "SQLiteTextJson":
+    case "SQLiteBlobJson":
+      return { type: "unknown", decorators: [] };
+    case "SQLiteBlobBuffer":
+      return { type: "bytes", decorators: [] };
+    default:
+      console.warn(`unmapped column type ${col.columnType} (${col.name}) -> unknown`);
+      return { type: "unknown", decorators: [] };
+  }
 }
 
 function scalarOf(col: any, asElement: boolean): { type: string; decorators: string[] } {
@@ -791,17 +867,46 @@ const out: string[] = [
   "",
 ];
 
-for (const e of [...enums.values()].sort((a, b) => a.enumName.localeCompare(b.enumName))) {
-  out.push(`enum ${pascal(e.enumName)} {`);
-  for (const v of e.enumValues) out.push(`  ${/^[A-Za-z_]\w*$/.test(v) ? v : `\`${v}\``}: "${v}",`);
+const enumDefs: { name: string; values: readonly string[] }[] = [
+  ...[...enums.values()]
+    .sort((a, b) => a.enumName.localeCompare(b.enumName))
+    .map((e) => ({ name: pascal(e.enumName), values: e.enumValues })),
+  ...[...sqliteEnums].sort(([a], [b]) => a.localeCompare(b)).map(([name, values]) => ({ name, values })),
+];
+for (const e of enumDefs) {
+  out.push(`enum ${e.name} {`);
+  for (const v of e.values) out.push(`  ${/^[A-Za-z_]\w*$/.test(v) ? v : `\`${v}\``}: "${v}",`);
   out.push("}", "");
+}
+
+// `// @format <name>` on a column. The type's own @format (pg uuid) is not repeated
+// when equal and may not be contradicted; array columns can't carry property
+// decorators (see typeOf), so a hint there is dropped with a warning.
+function formatHint(column: string, type: string, decorators: string[], formats: string[]): string[] {
+  if (formats.length === 0) return [];
+  if (formats.length > 1 || formats[0] === "") {
+    console.error(`${column}: expected exactly one \`@format <name>\` hint, got ${formats.length > 1 ? formats.length : "an empty one"}`);
+    process.exit(1);
+  }
+  const decorator = `@format(${JSON.stringify(formats[0])})`;
+  if (type.endsWith("[]")) {
+    console.warn(`${column}: @format ${formats[0]} ignored: array columns cannot carry property decorators`);
+    return [];
+  }
+  const own = decorators.find((d) => d.startsWith("@format("));
+  if (own === decorator) return [];
+  if (own) {
+    console.error(`${column}: @format ${formats[0]} conflicts with the column type's ${own}`);
+    process.exit(1);
+  }
+  return [`  ${decorator}`];
 }
 
 const READ_ONLY = new Set(params.readOnlyColumns);
 const missingDocs: string[] = [];
 
 for (const [name, table] of [...tables].sort(([a], [b]) => a.localeCompare(b))) {
-  const cfg = getTableConfig(table);
+  const cfg = tableConfig(table);
   const fkCols = new Set(
     cfg.foreignKeys.flatMap((fk) => fk.reference().columns.map((c) => c.name)),
   );
@@ -809,7 +914,7 @@ for (const [name, table] of [...tables].sort(([a], [b]) => a.localeCompare(b))) 
   out.push(`@doc("Database table \`${name}\`.")`, `model ${pascal(singular(name))}Row {`);
   const keyOf = new Map<unknown, string>(Object.entries(getTableColumns(table)).map(([k, c]) => [c, k]));
   for (const col of cfg.columns) {
-    const { type, decorators } = typeOf(col);
+    const { type, decorators } = typeOf(col, name);
     const info = columnDoc(name, keyOf.get(col) ?? col.name);
     if (info?.doc) out.push(`  @doc(${JSON.stringify(info.doc)})`);
     else if (params.requireDocs !== "off") {
@@ -818,6 +923,7 @@ for (const [name, table] of [...tables].sort(([a], [b]) => a.localeCompare(b))) 
     }
     for (const ex of info?.examples ?? []) out.push(`  @example(${ex})`);
     for (const d of decorators) out.push(`  ${d}`);
+    out.push(...formatHint(`${name}.${col.name}`, type, decorators, info?.formats ?? []));
     if (READ_ONLY.has(col.name)) {
       out.push(`  @visibility(Lifecycle.Read, Lifecycle.Delete)`);
     }
@@ -837,4 +943,4 @@ if (params.requireDocs === "error" && missingDocs.length > 0) {
 
 mkdirSync(dirname(outFile), { recursive: true });
 writeFileSync(outFile, out.join("\n"));
-console.log(`wrote ${outFile} (${enums.size} enums, ${tables.size} models)`);
+console.log(`wrote ${outFile} (${enumDefs.length} enums, ${tables.size} models)`);

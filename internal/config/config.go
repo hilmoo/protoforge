@@ -25,7 +25,7 @@ const FileName = "protoforge.yaml"
 // empty (null) section that means "enabled with defaults".
 type Config struct {
 	Version   int                 `yaml:"version" doc:"Config schema version." enum:"1" default:"1"`
-	EnvFile   string              `yaml:"env_file,omitempty" doc:"dotenv file loaded into every child process (and used for DATABASE_URL). Does not override variables already set. A missing file is ignored."`
+	EnvFile   string              `yaml:"env_file,omitempty" doc:"dotenv file loaded into every child process (and used for the variable named by migration.database_url_env). Does not override variables already set. A missing file is ignored."`
 	Env       map[string]string   `yaml:"env,omitempty" doc:"Extra environment variables for child processes. Values support ${VAR} expansion and override the environment."`
 	Tools     Tools               `yaml:"tools,omitempty" doc:"Overrides for how external tools are invoked. All optional; auto-detected."`
 	Migration *Migration          `yaml:"migration,omitempty" nullable:"true" doc:"Drizzle stage: drizzle-kit generate/push/migrate, drizzle-docs, post_push_sql and sync. Absent = stage disabled; empty = enabled with defaults."`
@@ -110,24 +110,29 @@ type ReplaceRule struct {
 
 // Migration configures the drizzle stage.
 type Migration struct {
-	Dir           string    `yaml:"dir" doc:"Drizzle project directory." default:"\"migration\""`
-	DrizzleConfig string    `yaml:"drizzle_config" doc:"Passed to drizzle-kit as --config (relative to dir)." default:"\"drizzle.config.ts\""`
-	DrizzleOut    string    `yaml:"drizzle_out" doc:"Drizzle's out directory, read by sync (relative to dir)." default:"\"drizzle\""`
-	Generate      bool      `yaml:"generate" doc:"Run drizzle-kit generate." default:"false"`
-	Push          bool      `yaml:"push" doc:"Run drizzle-kit push (then post_push_sql)." default:"false"`
-	Migrate       bool      `yaml:"migrate" doc:"Run drizzle-kit migrate." default:"false"`
-	Docs          *Docs     `yaml:"docs,omitempty" doc:"Run drizzle-docs generate. Use docs: {} for all defaults; omit to skip."`
-	PostPushSQL   []string  `yaml:"post_push_sql,omitempty" doc:"Raw SQL run in ONE transaction over DATABASE_URL after push (rolled back on error). Each entry may hold several statements or DO blocks. Also runnable with --only post_push_sql."`
-	Sync          *Sync     `yaml:"sync,omitempty" doc:"Copy drizzle/<name>/migration.sql to <to>/<name><suffix>, turning backticks into double quotes and removing statement-breakpoint lines. Omit to skip."`
-	RunAfter      []Command `yaml:"run_after,omitempty" doc:"Escape-hatch commands run in dir after the stage."`
+	Dialect        string    `yaml:"dialect" doc:"Database dialect. Picks the driver used by post_push_sql and the doctor check, and is the default for docs.dialect. Set it to match drizzle.config.ts; protoforge init detects it." enum:"\"postgresql\",\"sqlite\"" default:"\"postgresql\""`
+	DatabaseURLEnv string    `yaml:"database_url_env" doc:"Name of the environment variable holding the database location for post_push_sql and the doctor check: a connection URL for postgresql, a file path or file:/sqlite: URL for sqlite (relative paths resolve against dir)." default:"\"DATABASE_URL\"" pattern:"^[A-Za-z_][A-Za-z0-9_]*$"`
+	Dir            string    `yaml:"dir" doc:"Drizzle project directory." default:"\"migration\""`
+	DrizzleConfig  string    `yaml:"drizzle_config" doc:"Passed to drizzle-kit as --config (relative to dir)." default:"\"drizzle.config.ts\""`
+	DrizzleOut     string    `yaml:"drizzle_out" doc:"Drizzle's out directory, read by sync (relative to dir)." default:"\"drizzle\""`
+	Generate       bool      `yaml:"generate" doc:"Run drizzle-kit generate." default:"false"`
+	Push           bool      `yaml:"push" doc:"Run drizzle-kit push (then post_push_sql)." default:"false"`
+	Migrate        bool      `yaml:"migrate" doc:"Run drizzle-kit migrate." default:"false"`
+	Docs           *Docs     `yaml:"docs,omitempty" doc:"Run drizzle-docs generate. Use docs: {} for all defaults; omit to skip."`
+	PostPushSQL    []string  `yaml:"post_push_sql,omitempty" doc:"Raw SQL run in ONE transaction over the database named by database_url_env after push (rolled back on error). Each entry may hold several statements; DO blocks are PostgreSQL-only. Also runnable with --only post_push_sql."`
+	Sync           *Sync     `yaml:"sync,omitempty" doc:"Copy drizzle/<name>/migration.sql to <to>/<name><suffix>, turning backticks into double quotes and removing statement-breakpoint lines. Omit to skip."`
+	RunAfter       []Command `yaml:"run_after,omitempty" doc:"Escape-hatch commands run in dir after the stage."`
 }
 
 // Docs configures `drizzle-docs generate`.
 type Docs struct {
 	SchemaDir string `yaml:"schema_dir" doc:"Schema directory (relative to migration.dir)." default:"\"./src/schema\""`
-	Dialect   string `yaml:"dialect" doc:"Passed as -d." default:"\"postgresql\"" examples:"[\"postgresql\",\"mysql\",\"sqlite\"]"`
+	Dialect   string `yaml:"dialect" doc:"Passed as -d. Defaults to migration.dialect; when set it must equal migration.dialect." default:"\"postgresql\"" examples:"[\"postgresql\",\"mysql\",\"sqlite\"]"`
 	Format    string `yaml:"format" doc:"Passed as -f." default:"\"dbml\"" examples:"[\"dbml\",\"markdown\"]"`
 	Out       string `yaml:"out" doc:"Output file (relative to migration.dir)." default:"\"schema.dbml\""`
+
+	// dialectSet records that the user wrote dialect (ApplyDefaults fills it).
+	dialectSet bool `yaml:"-"`
 }
 
 // Sync configures the built-in migration sync (the old shell script).
@@ -346,12 +351,15 @@ func (c *Config) ApplyDefaults() {
 		c.Version = 1
 	}
 	if m := c.Migration; m != nil {
+		def(&m.Dialect, "postgresql")
+		def(&m.DatabaseURLEnv, "DATABASE_URL")
 		def(&m.Dir, "migration")
 		def(&m.DrizzleConfig, "drizzle.config.ts")
 		def(&m.DrizzleOut, "drizzle")
 		if d := m.Docs; d != nil {
 			def(&d.SchemaDir, "./src/schema")
-			def(&d.Dialect, "postgresql")
+			d.dialectSet = d.dialectSet || d.Dialect != ""
+			def(&d.Dialect, m.Dialect)
 			def(&d.Format, "dbml")
 			def(&d.Out, "schema.dbml")
 		}
@@ -415,6 +423,7 @@ func def(p *string, v string) {
 	}
 }
 
+var envNameRe = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 var protoPkgRe = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
 
 // Validate checks the config without touching the filesystem (so a freshly
@@ -432,6 +441,17 @@ func (c *Config) Validate() error {
 		}
 	}
 	if m := c.Migration; m != nil {
+		switch m.Dialect {
+		case "postgresql", "sqlite":
+		default:
+			add("migration.dialect: must be postgresql or sqlite (got %q)", m.Dialect)
+		}
+		if !envNameRe.MatchString(m.DatabaseURLEnv) {
+			add("migration.database_url_env: invalid environment variable name %q", m.DatabaseURLEnv)
+		}
+		if d := m.Docs; d != nil && d.dialectSet && d.Dialect != m.Dialect {
+			add("migration.docs.dialect: %q does not match migration.dialect %q; remove docs.dialect to follow it", d.Dialect, m.Dialect)
+		}
 		if d := m.Docs; d != nil && d.Out == "" {
 			add("migration.docs.out: must not be empty")
 		}

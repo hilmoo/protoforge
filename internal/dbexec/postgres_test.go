@@ -1,4 +1,4 @@
-package pgsql
+package dbexec
 
 import (
 	"context"
@@ -32,7 +32,7 @@ func TestCommitAndRollback(t *testing.T) {
 	defer conn.Exec(ctx, "DROP SCHEMA IF EXISTS protoforge_test CASCADE")
 
 	// Success: several statements, including a DO block, in one transaction.
-	err = Run(ctx, url, []string{
+	err = Run(ctx, Postgres, "DATABASE_URL", url, "", []string{
 		"CREATE SCHEMA protoforge_test; CREATE TABLE protoforge_test.t (x int);",
 		"DO $$ BEGIN INSERT INTO protoforge_test.t VALUES (1); END $$;",
 	})
@@ -45,7 +45,7 @@ func TestCommitAndRollback(t *testing.T) {
 	}
 
 	// Failure: the second statement fails, so the first must be rolled back.
-	err = Run(ctx, url, []string{
+	err = Run(ctx, Postgres, "DATABASE_URL", url, "", []string{
 		"INSERT INTO protoforge_test.t VALUES (2)",
 		"SELECT 1/0",
 	})
@@ -58,7 +58,7 @@ func TestCommitAndRollback(t *testing.T) {
 }
 
 func TestMissingURL(t *testing.T) {
-	if err := Run(context.Background(), "", []string{"SELECT 1"}); err == nil {
-		t.Fatal("want error")
+	if err := Run(context.Background(), Postgres, "MY_DB", "", "", []string{"SELECT 1"}); err == nil || !strings.Contains(err.Error(), "MY_DB is not set") {
+		t.Fatalf("want error naming MY_DB, got %v", err)
 	}
 }
